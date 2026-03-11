@@ -128,6 +128,14 @@ This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/`
 
 When running with `--fix -v`, the script computes and displays the average pairwise identity for each sequence in the final alignment. Sequences with identity significantly below the alignment average (>20 percentage points) are flagged as potential outliers.
 
+### Gap Minimization
+
+After all sequence filtering and corrections are applied, the script runs `esl-reformat --mingap stockholm` on the final alignment to remove any all-gap columns. All-gap columns can be introduced when sequences are removed during earlier steps (duplicate removal, overlap resolution, NCBI validation). This step ensures the corrected alignment has no unnecessary gap-only columns.
+
+Requires `esl-reformat` from the [Easel](http://eddylab.org/software/easel/) library, which is distributed as part of [Infernal](http://eddylab.org/infernal/). If `esl-reformat` is not found in PATH, this step is skipped and a warning is printed.
+
+The report includes the number of all-gap columns removed and the resulting alignment width.
+
 ### Report Output
 
 When using `--fix` in file output mode, a report file (`<stem>_Report.txt`) is generated alongside the corrected alignment, capturing the full verbose output of the validation and fixing process.

@@ -29,14 +29,19 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
     - Remove sequences that fail both NCBI validation and BLAST
   7. Compute pairwise identity - Calculate average pairwise identity per sequence
      and flag outliers (>20 percentage points below alignment average)
-  8. Write output - Save corrected file with proper Stockholm format order:
+  8. Gap minimization (esl-reformat --mingap) - Remove all-gap columns from the
+     final alignment using esl-reformat from the Easel/Infernal package.
+     All-gap columns can arise after sequence removals in earlier steps.
+     Reports the number of columns removed and the resulting alignment width.
+     Requires esl-reformat to be installed and in PATH (part of Infernal).
+  9. Write output - Save corrected file with proper Stockholm format order:
     - # STOCKHOLM 1.0 header
     - #=GF annotations (file-level)
     - #=GS annotations (sequence-level)
     - Sequences
     - #=GC annotations (column-level)
     - // terminator
-  9. Generate report - Save a report file (<stem>_Report.txt) capturing the full
+  10. Generate report - Save a report file (<stem>_Report.txt) capturing the full
      verbose output of the validation and fixing process
 
 Warnings (checked during validation, with or without --fix):
