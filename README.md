@@ -88,8 +88,8 @@ Sequences from the same accession (species) that overlap by at least 1 bp are de
 When using `--fix`, all sequences are validated against NCBI to ensure they match the source data at the given coordinates:
 
 1. **NCBI Validation**: Fetches the source sequence from NCBI and compares it against the Stockholm sequence at the given coordinates
-2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed to find the correct accession and coordinates
-3. **Removal**: Sequences that fail both NCBI validation and BLAST are removed from the output
+2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
+3. **Removal**: Sequences that fail both NCBI validation and BLAST (or whose BLAST hit does not exactly match NCBI) are removed from the output
 
 ### Filtering Known Rfam Families (cmscan)
 

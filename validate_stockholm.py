@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import tempfile
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 # Import validation modules
@@ -624,7 +625,19 @@ def main():
         if tee is not None:
             sys.stdout = tee.original
             report_path = path.parent / f"{path.stem}_Report.txt"
+            version_file = Path(__file__).parent / 'VERSION'
+            try:
+                version = version_file.read_text().strip()
+            except Exception:
+                version = 'unknown'
+            header = (
+                f"rfam-seed-qc v{version}\n"
+                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"File: {path.name}\n"
+                f"{'-' * 60}\n\n"
+            )
             with open(report_path, 'w') as f:
+                f.write(header)
                 f.write(tee.getvalue())
             print(f"  Report saved to: {report_path}")
     

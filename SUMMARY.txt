@@ -25,7 +25,10 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
     - Extract subsequence at given coordinates
     - Compare with Stockholm sequence (gaps removed, RNA to DNA converted)
     - If accession not found or sequence mismatches: run BLAST search as fallback
-    - If BLAST finds a hit (>=95% identity, >=90% coverage, e-value <=1e-10): update accession/coordinates
+    - If BLAST finds a hit (>=95% identity, >=90% coverage, e-value <=1e-10): re-fetch the hit's accession
+      from NCBI and verify exact sequence match before accepting the rescue
+    - If re-validation confirms exact match: update accession/coordinates
+    - If re-validation fails (sequence still does not match NCBI): remove the sequence
     - Remove sequences that fail both NCBI validation and BLAST
   7. Compute pairwise identity - Calculate average pairwise identity per sequence
      and flag outliers (>20 percentage points below alignment average)
