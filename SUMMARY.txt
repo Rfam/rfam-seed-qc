@@ -25,18 +25,26 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
     - Extract subsequence at given coordinates
     - Compare with Stockholm sequence (gaps removed, RNA to DNA converted)
     - If accession not found or sequence mismatches: run BLAST search as fallback
-    - If BLAST finds a hit (>=95% identity, >=90% coverage, e-value <=1e-10): update accession/coordinates
+    - If BLAST finds a hit (>=95% identity, >=90% coverage, e-value <=1e-10): re-fetch the hit's accession
+      from NCBI and verify exact sequence match before accepting the rescue
+    - If re-validation confirms exact match: update accession/coordinates
+    - If re-validation fails (sequence still does not match NCBI): remove the sequence
     - Remove sequences that fail both NCBI validation and BLAST
   7. Compute pairwise identity - Calculate average pairwise identity per sequence
      and flag outliers (>20 percentage points below alignment average)
-  8. Write output - Save corrected file with proper Stockholm format order:
+  8. Gap minimization (esl-reformat --mingap) - Remove all-gap columns from the
+     final alignment using esl-reformat from the Easel/Infernal package.
+     All-gap columns can arise after sequence removals in earlier steps.
+     Reports the number of columns removed and the resulting alignment width.
+     Requires esl-reformat to be installed and in PATH (part of Infernal).
+  9. Write output - Save corrected file with proper Stockholm format order:
     - # STOCKHOLM 1.0 header
     - #=GF annotations (file-level)
     - #=GS annotations (sequence-level)
     - Sequences
     - #=GC annotations (column-level)
     - // terminator
-  9. Generate report - Save a report file (<stem>_Report.txt) capturing the full
+  10. Generate report - Save a report file (<stem>_Report.txt) capturing the full
      verbose output of the validation and fixing process
 
 Warnings (checked during validation, with or without --fix):

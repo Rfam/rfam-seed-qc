@@ -1,4 +1,4 @@
-# rfam-msa-qa
+# rfam-seed-qc
 Tools for ensuring the quality of multiple sequence alignments (MSAs) in Rfam.
 
 ## Stockholm File Validation
@@ -88,8 +88,8 @@ Sequences from the same accession (species) that overlap by at least 1 bp are de
 When using `--fix`, all sequences are validated against NCBI to ensure they match the source data at the given coordinates:
 
 1. **NCBI Validation**: Fetches the source sequence from NCBI and compares it against the Stockholm sequence at the given coordinates
-2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed to find the correct accession and coordinates
-3. **Removal**: Sequences that fail both NCBI validation and BLAST are removed from the output
+2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
+3. **Removal**: Sequences that fail both NCBI validation and BLAST (or whose BLAST hit does not exactly match NCBI) are removed from the output
 
 ### Filtering Known Rfam Families (cmscan)
 
@@ -127,6 +127,14 @@ This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/`
 ### Pairwise Identity
 
 When running with `--fix -v`, the script computes and displays the average pairwise identity for each sequence in the final alignment. Sequences with identity significantly below the alignment average (>20 percentage points) are flagged as potential outliers.
+
+### Gap Minimization
+
+After all sequence filtering and corrections are applied, the script runs `esl-reformat --mingap stockholm` on the final alignment to remove any all-gap columns. All-gap columns can be introduced when sequences are removed during earlier steps (duplicate removal, overlap resolution, NCBI validation). This step ensures the corrected alignment has no unnecessary gap-only columns.
+
+Requires `esl-reformat` from the [Easel](http://eddylab.org/software/easel/) library, which is distributed as part of [Infernal](http://eddylab.org/infernal/). If `esl-reformat` is not found in PATH, this step is skipped and a warning is printed.
+
+The report includes the number of all-gap columns removed and the resulting alignment width.
 
 ### Report Output
 

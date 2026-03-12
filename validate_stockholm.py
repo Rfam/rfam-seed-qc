@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import tempfile
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 # Import validation modules
@@ -445,6 +446,46 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
                 flag = " <-- LOW" if avg_id < avg_all - 20 else ""
                 print(f"    {name:<40} {avg_id:.1f}%{flag}")
 
+    # Apply gap minimization: remove all-gap columns from final alignment
+    if processed_sequences and shutil.which('esl-reformat'):
+        orig_len = len(processed_sequences[0][1])
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.sto', delete=False) as tmp:
+                tmp_path = tmp.name
+                tmp.writelines(corrected_lines)
+            result = subprocess.run(
+                ['esl-reformat', '--mingap', 'pfam', tmp_path],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                mingap_lines = result.stdout.splitlines(keepends=True)
+                # Determine new alignment length from first sequence line
+                new_len = orig_len
+                for line in mingap_lines:
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith('#') and stripped != '//':
+                        parts = stripped.split()
+                        if len(parts) >= 2:
+                            new_len = len(parts[1])
+                            break
+                cols_removed = orig_len - new_len
+                corrected_lines = mingap_lines
+                if verbose:
+                    print(f"\n  Gap minimization (esl-reformat --mingap): removed {cols_removed} all-gap column(s), alignment now {new_len} columns wide")
+            else:
+                if verbose:
+                    print(f"  Warning: esl-reformat --mingap failed: {result.stderr.strip()}")
+        except Exception as e:
+            if verbose:
+                print(f"  Warning: esl-reformat --mingap failed: {e}")
+        finally:
+            if tmp_path:
+                Path(tmp_path).unlink(missing_ok=True)
+    elif processed_sequences and not shutil.which('esl-reformat'):
+        if verbose:
+            print("  Warning: esl-reformat not found in PATH, skipping gap minimization")
+
     if output_mode == 'stdout':
         for line in corrected_lines:
             print(line, end='')
@@ -584,7 +625,19 @@ def main():
         if tee is not None:
             sys.stdout = tee.original
             report_path = path.parent / f"{path.stem}_Report.txt"
+            version_file = Path(__file__).parent / 'VERSION'
+            try:
+                version = version_file.read_text().strip()
+            except Exception:
+                version = 'unknown'
+            header = (
+                f"rfam-seed-qc v{version}\n"
+                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"File: {path.name}\n"
+                f"{'-' * 60}\n\n"
+            )
             with open(report_path, 'w') as f:
+                f.write(header)
                 f.write(tee.getvalue())
             print(f"  Report saved to: {report_path}")
     

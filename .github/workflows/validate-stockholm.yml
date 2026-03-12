@@ -27,7 +27,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           environment-file: environment.yml
-          activate-environment: rfam-msa-qa
+          activate-environment: rfam-seed-qc
           channels: bioconda,conda-forge,defaults
 
       - name: Prepare Rfam CM database

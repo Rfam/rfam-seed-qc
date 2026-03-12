@@ -134,7 +134,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             for hsp in alignment.hsps:
                 # Calculate identity and coverage
                 identity = (hsp.identities / hsp.align_length) * 100
-                coverage = (hsp.align_length / len(dna_seq)) * 100
+                coverage = (hsp.query_end - hsp.query_start) / len(dna_seq) * 100
 
                 if identity >= min_identity and coverage >= min_coverage and hsp.expect <= max_evalue:
                     # Extract accession from hit - try multiple formats
@@ -415,10 +415,31 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                 print(f"    Trying BLAST fallback for {seq_name}...")
             blast_result, is_accurate = blast_search(stockholm_seq, verbose=verbose)
             if is_accurate and blast_result:
-                if verbose:
-                    print(f"    {seq_name} -> {blast_result} (via BLAST)")
-                blast_fixed[seq_name] = blast_result
-                continue
+                # Re-validate the Stockholm sequence against the BLAST hit's accession
+                # to ensure the sequence data actually matches (required for MD5 check)
+                blast_accession, blast_coords = parse_sequence_identifier(blast_result)
+                blast_match = re.match(r'(\d+)-(\d+)', blast_coords) if blast_coords else None
+                if blast_match:
+                    blast_start, blast_end = int(blast_match.group(1)), int(blast_match.group(2))
+                    try:
+                        blast_fasta_file = get_fasta_file(blast_accession)
+                        blast_fasta = SeqIO.read(blast_fasta_file, "fasta")
+                        if blast_start < blast_end:
+                            blast_ncbi_seq = str(blast_fasta.seq[blast_start - 1:blast_end]).upper()
+                        else:
+                            blast_ncbi_seq = str(blast_fasta.seq[blast_end - 1:blast_start].reverse_complement()).upper()
+                        stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
+                        if stockholm_seq_dna == blast_ncbi_seq:
+                            if verbose:
+                                print(f"    {seq_name} -> {blast_result} (via BLAST, re-validated OK)")
+                            blast_fixed[seq_name] = blast_result
+                            continue
+                        else:
+                            if verbose:
+                                print(f"    BLAST hit {blast_result} found but sequence still does not match NCBI — removing")
+                    except Exception:
+                        if verbose:
+                            print(f"    Could not re-validate BLAST hit {blast_result} — removing")
 
         # Neither direct validation nor BLAST succeeded
         # Determine which category this failure belongs to
