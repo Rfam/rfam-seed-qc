@@ -1,4 +1,4 @@
-name: rfam-msa-qa
+name: rfam-seed-qc
 channels:
   - bioconda
   - conda-forge

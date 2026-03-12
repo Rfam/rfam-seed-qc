@@ -454,7 +454,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
                 tmp_path = tmp.name
                 tmp.writelines(corrected_lines)
             result = subprocess.run(
-                ['esl-reformat', '--mingap', 'stockholm', tmp_path],
+                ['esl-reformat', '--mingap', 'pfam', tmp_path],
                 capture_output=True, text=True
             )
             if result.returncode == 0 and result.stdout.strip():

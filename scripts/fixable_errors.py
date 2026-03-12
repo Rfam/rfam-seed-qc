@@ -134,7 +134,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             for hsp in alignment.hsps:
                 # Calculate identity and coverage
                 identity = (hsp.identities / hsp.align_length) * 100
-                coverage = (hsp.align_length / len(dna_seq)) * 100
+                coverage = (hsp.query_end - hsp.query_start) / len(dna_seq) * 100
 
                 if identity >= min_identity and coverage >= min_coverage and hsp.expect <= max_evalue:
                     # Extract accession from hit - try multiple formats
