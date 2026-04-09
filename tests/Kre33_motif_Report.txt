@@ -1,0 +1,82 @@
+rfam-seed-qc v1.1.1
+Date: 2026-04-09 08:30:24
+File: Kre33_motif.sto
+------------------------------------------------------------
+
+  Scanning against known Rfam families (models/15.1/Rfam.cm), using GA thresholds...
+  No sequences significantly match known Rfam families.
+  Validating 14 sequence(s) against NCBI...
+  JGI20155J14468_10001294/8178-8137: accession NOT FOUND in NCBI (This FASTA file contains comments at the beginning of the file, which are not
+allowed by the 'fasta' parser.
+
+To parse this file, you have three options:
+
+(1) Modify your FASTA file to remove such comments at the beginning of the
+file.
+
+(2) Use SeqIO.parse with the 'fasta-pearson' format instead of 'fasta'. This
+format is consistent with the FASTA format defined by William Pearson's FASTA
+aligner software. This format allows for comments before the first sequence;
+lines starting with the ';' character anywhere in the file are also regarded
+as comment lines and are ignored.
+
+(3) Use the 'fasta-blast' format. This format regards any lines "starting with
+'!', '#', or ';' as comment lines. The 'fasta-blast' format may be safer than
+the 'fasta-pearson' format, as it explicitly indicates which lines are comments.
+)
+    Trying BLAST fallback for JGI20155J14468_10001294/8178-8137...
+    Running BLAST search (42 bp)...
+    No accurate BLAST hit found
+  CESI01156798.1/204-163: validated OK
+  CEPC01152088.1/6876-6919: validated OK
+  CEWB01044523.1/866-909: validated OK
+  CEQU01016461.1/5716-5757: validated OK
+  JGI20151J14362_10018487/915-958: accession NOT FOUND in NCBI (This FASTA file contains comments at the beginning of the file, which are not
+allowed by the 'fasta' parser.
+
+To parse this file, you have three options:
+
+(1) Modify your FASTA file to remove such comments at the beginning of the
+file.
+
+(2) Use SeqIO.parse with the 'fasta-pearson' format instead of 'fasta'. This
+format is consistent with the FASTA format defined by William Pearson's FASTA
+aligner software. This format allows for comments before the first sequence;
+lines starting with the ';' character anywhere in the file are also regarded
+as comment lines and are ignored.
+
+(3) Use the 'fasta-blast' format. This format regards any lines "starting with
+'!', '#', or ';' as comment lines. The 'fasta-blast' format may be safer than
+the 'fasta-pearson' format, as it explicitly indicates which lines are comments.
+)
+    Trying BLAST fallback for JGI20151J14362_10018487/915-958...
+    Running BLAST search (44 bp)...
+    No accurate BLAST hit found
+  CESU01195445.1/560-601: validated OK
+  CEPW01142534.1/5650-5691: validated OK
+  CEUB01199099.1/2829-2870: validated OK
+  CEUV01109071.1/32811-32770: validated OK
+  CERW01266211.1/2957-2998: validated OK
+  NC_024006.1/818816-818857: validated OK
+  NW_003315884.1/852810-852851: validated OK
+  NC_013047.1/658763-658720: validated OK
+  2 sequence(s) not found in NCBI (invalid accession?)
+  Removed 2 sequence(s) total from output
+
+  Pairwise identity (avg 79.8%):
+    CEUV01109071.1/32811-32770               71.9%
+    CERW01266211.1/2957-2998                 73.4%
+    CESU01195445.1/560-601                   78.8%
+    NW_003315884.1/852810-852851             79.9%
+    CEPC01152088.1/6876-6919                 79.9%
+    NC_013047.1/658763-658720                79.9%
+    CEWB01044523.1/866-909                   80.8%
+    CEPW01142534.1/5650-5691                 82.3%
+    CEUB01199099.1/2829-2870                 82.3%
+    CEQU01016461.1/5716-5757                 82.5%
+    CESI01156798.1/204-163                   83.1%
+    NC_024006.1/818816-818857                83.1%
+  Warning: esl-reformat not found in PATH, skipping gap minimization
+✓ Fixed 0 issue(s) in tests/Kre33_motif.sto
+  Corrected file saved to: tests/Kre33_motif_corrected.sto
+✓ tests/Kre33_motif_corrected.sto: Valid Stockholm file
