@@ -1,0 +1,28 @@
+# STOCKHOLM 1.0
+#=GF AU Infernal 1.1.2
+#=GF R2R var_term_loop < >
+#=GF R2R var_hairpin ( )
+#=GF R2R place_explicit a a-- -90 5 0 0 0 +180
+#=GF R2R var_backbone_range 1 2
+#=GS HBEV01015124.1/1437-1554 source TSA: Micromonas pusilla, MMETSP1404-doi:10.5281-zenodo.249982-Transcript-9104, transcribed RNA sequence
+#=GS NC_013053.1/98811-98928 source Micromonas commoda chromosome 16, complete sequence
+#=GS CEVW01002916.1/496-613 source marine metagenome genome assembly TARA_149_SRF_0.22-3, contig TARA_149_SRF_0.22-3_scaffold7184_1, whole genome shotgun sequence
+#=GS NW_003315884.1/166953-166839 source Micromonas pusilla CCMP1545 genomic scaffold MICPUCscaffold_3, whole genome shotgun sequence
+#=GS NW_003315884.1/166819-166675 source Micromonas pusilla CCMP1545 genomic scaffold MICPUCscaffold_3, whole genome shotgun sequence
+#=GS HBDY01004330.1/1879-2026 source TSA: Micromonas pusilla, MMETSP1402-doi:10.5281-zenodo.249982-Transcript-13894, transcribed RNA sequence
+#=GS HBEN01005775.1/1453-1552 source TSA: Micromonas pusilla, MMETSP1401-doi:10.5281-zenodo.249982-Transcript-15194, transcribed RNA sequence
+#=GS CEWB01161073.1/142-22 source marine metagenome genome assembly TARA_068_SRF_0.22-3, contig TARA_068_SRF_0.22-3_C14883302_1, whole genome shotgun sequence
+#=GS CERV01227561.1/525-405 source marine metagenome genome assembly TARA_068_DCM_0.45-0.8, contig TARA_068_DCM_0.45-0.8_C15344701_1, whole genome shotgun sequence
+HBEV01015124.1/1437-1554       CAGCUGGUCGUCACCCCCGGGA..........AACA...........UUCCGGGACAAGGGGCGGCGAUCGGGCAAAGUGGGCUUUUCCUCCCCUCCGCCC.................UGUACGCG.CGCgGCGCCUC.........GCGCgGCGCGCGUGCAGCA
+NC_013053.1/98811-98928        CAGCUGGUCGUCACCCCCGGGA..........AACA...........UUCCGGGACAAGGGGCGGCGAUCGGGCAAAGUGGGCUUUUCCUCCCCUCCGCCC.................UGUACGCG.CGCgGCGUCUC.........GCGCgGCGCGCGUGCAGCA
+CEVW01002916.1/496-613         CAGCUGGUCGUCACCCCCGGGA..........AACA...........UUCCGGGACAAGGGGCGGCGAUCGGGCAAAGUGGGCUUUUCCUCCCCUCCGCCC.................UGUACGCG.CGCgGCGUCUC.........GUGCgGCGCGCGUGCAGCA
+NW_003315884.1/166953-166839   CAGCUGUUCGCCGCCGGGUCGCgc........AUCG.......gc..GCGACUU-----CGGCGGCGUUCGGGCAAAGUGGGCCUUUCCUCCCCUCCGCCC.................UGUGGCCG.ACG.UCGCGUC.........GCGG.CGUCGGUCGCAGCA
+NW_003315884.1/166819-166675   CAGCUGUUCGUCGCUCGGCGCGggaagaaaaaaac...uuuuuuccuCUCGCCG------AGCCGCGAUCGGGCACAGUGGGUUUUUCCUCCCCUCCGCCCuguccgucucgguggacCGCGCGCGcGUC.GUG-UCAU........-CAC.GGCCGCGCGCGGGA
+HBDY01004330.1/1879-2026       CAGCUGUUCGUCGCUCGGCGCGggaagaaaaaaacuuuuuuuuuccuCUCGCCG------AGCCGCGAUCGGGCACAGUGGGUUUUUCCUCCCCUCCGCCCuguccgucucgguggacCGCGCGCGcGUC.GUG-UCAU........-CAC.GGCCGCGCGCGGGA
+HBEN01005775.1/1453-1552       CAGCUGGUCGC..CUCG.C.cg...........UCUA..........C..G.CG......AGC.GCGAUCGGGCACAGUGGGUCUUUCCUCCCCUCCGCCC.................UGCGCGUC.GCC.A...CCcgGAU........U.GGCGACGCGCAGCA
+CEWB01161073.1/142-22          CAGCUGGUCGUCACCCCCGGGA..........AACA...........UUCCGGGAUAAGGGGCGGCGAUCGGGCAAAGUGGGCUUUUCCUCCCCUCCGCCC.................UGUACGCG.CGC.GG..CUUUacaucaca..CC.GCGCGCGUGCAGCA
+CERV01227561.1/525-405         CAGCUGGUCGUCACCCCCGGGA..........AACA...........UUCCGGGAUAAGGGGCGGCGAUCGGGCAAAGUGGGCUUUUCCUCCCCUCCGCCC.................UGUACGCG.CGC.GG..CUUCacaucaca..CC.GCGCGCGUGCAGCA
+#=GC SS_cons                   :::::<<<<<<<:<<<<<<<<<..........____~~~~~~.....>>>>>>>,,,,,,>>.>>>>>>><<<<--<<-<<<________>>>>>-->>>>.................<<<<<<<<.<<<.<<<<____~~~~....>>>>.>>>>>>>>>>>:::
+#=GC cons                      CAGCUGnUCGYCRCYCnnnnnR----------AnCn-----------YYnnnnG-----nRGCnGCGAUCGGGCAnAGUGGGYYUUUCCUCCCCUCCGCCC-----------------UGYRCGCG-nnY-Rnn-YYYn---------nnY-GnnCGCGYGCAGCA
+#=GC R2R_LABEL                 .....................<.........................>......................a..............................1...............2.............(..................)...............
+//
