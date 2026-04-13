@@ -1,0 +1,705 @@
+# STOCKHOLM 1.0
+#=GF AU Infernal 1.1.5
+
+#=GS DAQCPM010000011.1:c16965-16828        DE TPA_asm: Enterobacter cloacae strain 102-1 SAMN36415738-rid18778803.denovo.11, whole genome shotgun sequence
+#=GS NZ_CP156673.1:c865054-864917          DE Enterobacter sp. HNDS-6 chromosome, complete genome
+#=GS NZ_CP115035.1:1173358-1173495         DE Citrobacter sp. C1 chromosome, complete genome
+#=GS DACZSL010000001.1:c28747-28610        DE TPA_asm: Enterobacter hormaechei subsp. steigerwaltii strain ECC033 SAMN15680738-rid11289793.denovo.01, whole genome shotgun sequence
+#=GS DAOXWW010000001.1:c63144-63007        DE TPA_asm: Enterobacter hormaechei subsp. steigerwaltii strain JBBCAAG-19-0004 SAMD00498276-rid17807043.denovo.001, whole genome shotgun sequence
+#=GS JBHGRT010000002.1:c28558-28421        DE Enterobacter hormaechei subsp. steigerwaltii strain M25004 2, whole genome shotgun sequence
+#=GS CP043766.1:c633253-633116             DE Enterobacter hormaechei strain EB_P9_L5_03.19 chromosome, complete genome
+#=GS NZ_CAIZTO010000012.1:121480-121617    DE Enterobacter hormaechei isolate IMP22, whole genome shotgun sequence
+#=GS NZ_FKAX01000002.1:448386-448523       DE Enterobacter hormaechei strain e1832, whole genome shotgun sequence
+#=GS NZ_FKCV01000002.1:572002-572139       DE Enterobacter hormaechei strain e248, whole genome shotgun sequence
+#=GS NZ_UNPX01000014.1:68084-68221         DE Enterobacter hormaechei isolate CEREMI_E19, whole genome shotgun sequence
+#=GS JAMYDG010000482.1:5286-5423           DE Enterobacter hormaechei contig1556, whole genome shotgun sequence
+#=GS NZ_JAMGKV010000006.1:c28872-28735     DE Enterobacter vonholyi strain C210212 NODE_6_length_210858_cov_152.098021, whole genome shotgun sequence
+#=GS DAJESM010000039.1:9917-10054          DE TPA_asm: Escherichia coli strain 147002 SAMN26427545-rid15396683.denovo.039, whole genome shotgun sequence
+#=GS DBAYPE010000032.1:10064-10201         DE TPA_asm: Escherichia coli strain GN205 SAMN42395711-rid23838533.denovo.032, whole genome shotgun sequence
+#=GS JAVWZZ010000020.1:4115-4252           DE MAG: Hafnia sp. isolate CGS5Y2-bin13 NODE_522_length_49499_cov_77.136457, whole genome shotgun sequence
+#=GS JAAULA010000009.1:236295-236432       DE Escherichia coli strain EC-N-FC134-24FEB15-0379J EC-N-FC134-24FEB15-0379J_9, whole genome shotgun sequence
+#=GS NZ_LNHZ01000002.1:86594-86731         DE Citrobacter sp. 50677481 contig10, whole genome shotgun sequence
+#=GS NZ_CP181249.1:c3658661-3658524        DE MAG: Hafnia paralvei isolate UW_FK_HAF1_1 chromosome
+#=GS NZ_JAHTVZ010000013.1:c42601-42464     DE Citrobacter cronae strain Q2146 NODE_13_length_131710_cov_13.192693, whole genome shotgun sequence
+#=GS NZ_CALECD010000001.1:11772-11909      DE MAG: Hafnia paralvei isolate ERR912132_bin.122_CONCOCT_v1.1_MAG ERZ827496.92, whole genome shotgun sequence
+#=GS NZ_CP136828.1:1300247-1300384         DE Citrobacter koseri strain K2521 chromosome, complete genome
+#=GS NZ_JASMVZ010000028.1:51818-51955      DE Escherichia coli strain 22-578 NODE_28_length_72427_cov_61.379304, whole genome shotgun sequence
+#=GS NZ_JALMON010000009.1:c21403-21266     DE Escherichia coli strain CRIS-Ec57 scaffold_8, whole genome shotgun sequence
+#=GS NZ_CP053259.1:1141465-1141602         DE Escherichia coli strain GF3-3 chromosome, complete genome
+#=GS JAHAGJ010000068.1:4037-4174           DE MAG: Citrobacter freundii isolate L2_059_038G1_dasL2_059_038G1_maxbin2.maxbin.001 L2_059_038G1_scaffold_601, whole genome shotgun sequence
+#=GS NZ_JARLLJ010000004.1:c85047-84910     DE Citrobacter freundii strain CAPA023 4, whole genome shotgun sequence
+#=GS NZ_JABJXJ010000006.1:331420-331557    DE Citrobacter freundii strain 20-MO00091-0 20-MO00091-0_CitKlinAbwUBo_contig_6, whole genome shotgun sequence
+#=GS ABOMLX010000015.1:c63184-63046        DE Serratia marcescens isolate clinical SAMN38060499-rid20051123.denovo.15, whole genome shotgun sequence
+#=GS DARSOJ010000012.1:55226-55364         DE TPA_asm: Serratia marcescens strain SER00625 SAMN38373565-rid20333593.denovo.12, whole genome shotgun sequence
+#=GS DAXWQX010000006.1:57285-57423         DE TPA_asm: Serratia marcescens isolate MIC00065408 SAMN40441842-rid21408723.denovo.06, whole genome shotgun sequence
+#=GS DBDJCB010000008.1:c201629-201491      DE TPA_asm: Serratia marcescens strain SER01067 SAMN45299319-rid24437333.denovo.08, whole genome shotgun sequence
+#=GS NZ_PXKH01000007.1:c204328-204190      DE Serratia marcescens strain CRE44 NODE_7_length_258610_cov_53.4113, whole genome shotgun sequence
+#=GS JBGRNG010000005.1:287636-287800       DE Pseudomonas aeruginosa strain 2420473 2420473_contig_4_(1..329878)_consensus, whole genome shotgun sequence
+#=GS NZ_JAWUDN010000002.1:c392944-392815   DE Ewingella allii strain 20WA0182 NODE_2_length_445079_cov_24.451315, whole genome shotgun sequence
+#=GS ABXKYY010000005.1:c277559-277430      DE Yersinia enterocolitica strain 01681327 SAMN46527407-rid25066633.denovo.05, whole genome shotgun sequence
+#=GS DANMWD010000042.1:c7343-7214          DE TPA_asm: Yersinia enterocolitica strain PNUSAY000105 SAMN28161072-rid14382863.denovo.44, whole genome shotgun sequence
+#=GS DANMWK010000035.1:c28570-28441        DE TPA_asm: Yersinia enterocolitica strain IDR2200014702-01 SAMN27521862-rid14208303.denovo.36, whole genome shotgun sequence
+#=GS NZ_CQBH01000006.1:c253941-253812      DE Yersinia massiliensis strain 24070, whole genome shotgun sequence
+#=GS NZ_CPZL01000003.1:c72112-71983        DE Yersinia enterocolitica strain SZ5108/01, whole genome shotgun sequence
+#=GS NZ_CP173224.1:c3782844-3782715        DE Yersinia enterocolitica subsp. enterocolitica strain Billups-1803-68 chromosome, complete genome
+#=GS NZ_CP133783.1:c337570-337406          DE Pseudomonas sp. MH10 chromosome, complete genome
+#=GS NZ_JASJWP010000015.1:3380-3544        DE Pseudomonas sp. CCI1.2 CCI1s2_15, whole genome shotgun sequence
+#=GS NZ_AP021902.1:4137488-4137653         DE Pseudomonas sp. Cab53 chromosome, complete genome
+#=GS NZ_FYDR01000001.1:931243-931391       DE Pseudomonas sp. Irchel s3a10 isolate Pseudomonas sp. Irchel s3a10, whole genome shotgun sequence
+#=GS NZ_SMYK01000007.1:c12979-12831        DE Pseudomonas moraviensis strain N 20.18 Scaffold3_2, whole genome shotgun sequence
+#=GS DAFSJJ010000013.1:31301-31465         DE TPA_asm: Pseudomonas aeruginosa strain 14ARS_BGH0122 SAMEA38534668-rid6943453.denovo.13, whole genome shotgun sequence
+#=GS DATZTT010000030.1:41737-41901         DE TPA_asm: Pseudomonas aeruginosa strain JBABADI-19-0113 SAMD00658291-rid20669843.denovo.032, whole genome shotgun sequence
+#=GS NZ_CP072783.1:6091154-6091318         DE Pseudomonas aeruginosa strain LICME WGH-6 chromosome, complete genome
+#=GS NZ_CP029693.1:c6232239-6232074        DE Pseudomonas putida strain JBC17 chromosome, complete genome
+#=GS NZ_LDRY01000025.1:c26840-26702        DE Pantoea dispersa strain NS215 contig_25, whole genome shotgun sequence
+#=GS NZ_ML137047.1:c3225753-3225615        DE Pantoea dispersa strain C34 Scaffold1, whole genome shotgun sequence
+#=GS NZ_CP127228.1:5480550-5480711         DE Pseudomonas tohonis strain KRS022 chromosome, complete genome
+#=GS NZ_JAXDEU010000005.1:c364292-364127   DE Pseudomonas canadensis strain PFO23 NODE_5_length_458928_cov_1.710709, whole genome shotgun sequence
+#=GS NZ_PHHE01000001.1:c5083897-5083747    DE Pseudomonas baetica strain LMG 25716 Ga0070643_11, whole genome shotgun sequence
+#=GS NZ_UTIB01000079.1:c410492-410342      DE Pseudomonas viridiflava isolate p13.G1, whole genome shotgun sequence
+#=GS NZ_JABWQK020000001.1:1301137-1301287  DE Pseudomonas sp. SWRI22 1, whole genome shotgun sequence
+#=GS NZ_JAQJVM010000002.1:901163-901313    DE Pseudomonas cerasi strain NTM-B-29 Contig_0002, whole genome shotgun sequence
+#=GS NZ_KZ268676.1:45892-46030             DE Pantoea agglomerans strain JM1 Scaffold7, whole genome shotgun sequence
+#=GS NZ_JACGXJ010000001.1:46038-46176      DE Pantoea agglomerans strain MR19 Ga0326531_01, whole genome shotgun sequence
+#=GS NZ_JAXCWZ010000006.1:4468-4606        DE Pantoea agglomerans strain CFBP8988 CFBP8988_6, whole genome shotgun sequence
+#=GS NZ_CP010415.1:c553175-553014          DE Azotobacter chroococcum NCIMB 8003 chromosome, complete genome
+#=GS NZ_CAWOFI010000173.1:9880-10012       DE Photorhabdus sp. CRCIA-P01 isolate ena-yuan-GCF_003545805.1 NZ_NMQR01000065.1, whole genome shotgun sequence
+#=GS NZ_CAWOQH010000188.1:76211-76343      DE Photorhabdus luminescens subsp. sonorensis isolate ena-yuan-GCF_006239335.1 NZ_SBIJ01000006.1, whole genome shotgun sequence
+#=GS NZ_CAKAKK010000002.1:26255-26422      DE Pseudomonas sp. Marseille-P8916, whole genome shotgun sequence
+#=GS NZ_JACAQE010000002.1:573997-574160    DE Pseudomonas gingeri strain IPO3738 IPO_3738_S23_L002_contig_2, whole genome shotgun sequence
+#=GS NZ_JAVDWT010000004.1:c467569-467420   DE Pseudomonas frederiksbergensis strain 4169 Ga0454476_04, whole genome shotgun sequence
+#=GS NZ_CAXAQE010000005.1:c23127-22985     DE Pseudomonas sp. JAI120 isolate PseudoSSchier:R98 EA_65y_Pfl1_R98_NODE_5_length_471369_cov_10.065149, whole genome shotgun sequence
+#=GS NZ_KL647095.1:c227721-227555          DE Pseudomonas sp. AAC Scaffold2, whole genome shotgun sequence
+#=GS NZ_JADUCQ010000001.1:c163479-163313   DE Pseudomonas citronellolis strain PSB00011 PSB00011_c0001, whole genome shotgun sequence
+#=GS NZ_AYTD01000001.1:c66530-66389        DE Pseudomonas canadensis strain Feb-92 scaffold4.1, whole genome shotgun sequence
+#=GS NZ_JAOTNX010000010.1:c90132-89991     DE Pseudomonas sp. AM8 sequence10, whole genome shotgun sequence
+#=GS DAZTFF010000056.1:c12446-12284        DE TPA_asm: Pseudomonas aeruginosa isolate clinical isolate SAMN44061376-rid23553963.denovo.056, whole genome shotgun sequence
+#=GS STVZ01000036.1:30400-30562            DE Pseudomonas aeruginosa strain PSA-BAB-IMI-103165 PSA-IMI-103165_36_len_59953_cov_17_ID_8906, whole genome shotgun sequence
+#=GS NZ_CP050324.1:754891-755053           DE Pseudomonas aeruginosa strain DVT427 chromosome, complete genome
+#=GS NZ_AWZE01001985.1:c3128-2966          DE Pseudomonas aeruginosa JD333 15465, whole genome shotgun sequence
+#=GS NZ_CP137621.1:3019894-3020057         DE Pseudomonas putida strain 1.8.4 chromosome, complete genome
+#=GS NZ_JBDJMM010000011.1:75361-75524      DE Pseudomonas sp. TWI628 contig00011, whole genome shotgun sequence
+#=GS NZ_JABWQI010000031.1:49509-49650      DE Pseudomonas paralactis strain SWRI70 contig31, whole genome shotgun sequence
+#=GS NZ_AVFN01000051.1:16743-16907         DE Pseudomonas kilonensis strain S12 contig51, whole genome shotgun sequence
+#=GS NZ_CP081200.1:c2990018-2989853        DE Pseudomonas sp. 3-2 chromosome, complete genome
+#=GS NZ_CP076386.1:2799705-2799832         DE Dickeya dadantii strain S3-1 chromosome, complete genome
+#=GS NZ_CP162411.1:439150-439277           DE Dickeya oryzae strain A642-S2-A17 chromosome, complete genome
+#=GS NZ_CP040815.1:c4306423-4306296        DE Dickeya zeae strain A5272 chromosome, complete genome
+#=GS NZ_JBIWEM010000003.1:143753-143916    DE Pseudomonas sp. NPDC096925 NPDC096925_227_E9.ctg-0003, whole genome shotgun sequence
+#=GS NZ_KB316290.1:c817433-817270          DE Pseudomonas syringae BRIP39023 scaffold3, whole genome shotgun sequence
+#=GS NZ_CAKKMU010000104.1:c1978-1844       DE Pseudomonas sp. Bi70, whole genome shotgun sequence
+#=GS JBEZUF010000007.1:28680-28829         DE Pseudomonas aeruginosa strain PA_HTX107 NODE_7_length_280410_cov_89.332682, whole genome shotgun sequence
+#=GS NZ_JAOXKY010000009.1:23221-23370      DE Pseudomonas aeruginosa strain E-19-52481-1-1 E-19-52481-1-1_NODE_9_PSEUDOMONAS, whole genome shotgun sequence
+#=GS NZ_CADEQQ010000011.1:c47707-47552     DE Burkholderia pyrrocinia strain BCC0986, whole genome shotgun sequence
+#=GS NZ_CADESM010000004.1:450842-450997    DE Burkholderia ambifaria strain BCC1233, whole genome shotgun sequence
+#=GS NZ_CADFEY010000015.1:c40518-40363     DE Burkholderia vietnamiensis strain BCC0124, whole genome shotgun sequence
+#=GS NZ_CP071825.1:c1184826-1184671        DE Burkholderia anthina strain 1CH1 chromosome 1, complete sequence
+#=GS NZ_CP109821.1:2511838-2511993         DE Burkholderia arboris strain PN-1 chromosome 1, complete sequence
+#=GS NZ_LPDZ01000234.1:c6043-5888          DE Burkholderia ubonensis strain MSMB1181WGS MSMB1181WGS_9, whole genome shotgun sequence
+#=GS NZ_LPDA01000045.1:136271-136426       DE Burkholderia cepacia strain MSMB1062WGS MSMB1062WGS_42, whole genome shotgun sequence
+#=GS NZ_CP134498.1:c5130570-5130412        DE Pseudomonas sp. SG20052 chromosome, complete genome
+#=GS NZ_WKDG01000080.1:c1800-1657          DE Pseudomonas syringae strain PA-5-6C 80, whole genome shotgun sequence
+#=GS NZ_KI911362.1:31860-32009             DE Pseudomonas sp. URMO17WK12:I4 H042DRAFT_scaffold00004.4, whole genome shotgun sequence
+#=GS NZ_FOHW01000016.1:c28038-27899        DE Pseudomonas graminis strain DSM 11363, whole genome shotgun sequence
+#=GS NZ_PRLP01000009.1:c19469-19300        DE Pokkaliibacter plantistimulans strain 228 NODE_14_length_132687_cov_44.843731, whole genome shotgun sequence
+#=GS JAHHZP010000002.1:c277147-276977      DE Paraburkholderia sediminicola strain DP-P12 2, whole genome shotgun sequence
+#=GS NZ_CAJNAV010000010.1:204592-204762    DE Paraburkholderia domus strain R-69927 isolate R-69927, whole genome shotgun sequence
+#=GS NZ_JOKD01000010.1:c188792-188633      DE Halomonas halophila strain CIFRI 1 contig_10, whole genome shotgun sequence
+#=GS NZ_LBJZ01000179.1:c98347-98205        DE Bradyrhizobium sp. CCBAU 11361 C779, whole genome shotgun sequence
+#=GS JBGWZM010000004.1:c140173-139905      DE Aeromonas veronii strain HZSC23JY025 HZSC23JY025_4, whole genome shotgun sequence
+#=GS JBKAQB010000053.1:c871-603            DE Aeromonas caviae strain CN18A151 Contig54, whole genome shotgun sequence
+#=GS NZ_SPQT01000034.1:90270-90412         DE Bradyrhizobium niftali strain CNPSo 3448 scaffold_33, whole genome shotgun sequence
+#=GS NZ_JBEPQW010000004.1:60305-60447      DE Bradyrhizobium sp. RT10b Ga0500308_04, whole genome shotgun sequence
+#=GS NZ_JAXOFN010000042.1:54057-54216      DE Massilia luteola strain NEAU-G-C5 Scaffold39_1, whole genome shotgun sequence
+#=GS NZ_BCNS01000022.1:5641-5792           DE Marinobacterium profundum strain PAMC 27536, whole genome shotgun sequence
+#=GS NZ_KB899131.1:c2393-2242              DE Marinobacterium rhizophilum DSM 18822 F451DRAFT_scaffold00043.43, whole genome shotgun sequence
+#=GS NZ_RQIT01000018.1:15330-15472         DE Bradyrhizobium sp. RP6 NODE_18_length_147217_cov_27.8698, whole genome shotgun sequence
+#=GS NZ_HG992336.1:102216-102328           DE Xanthomonas arboricola strain 1311a isolate 1311a chromosome XA1311A, complete sequence
+#=GS NZ_JACHOI010000001.1:198935-199048    DE Xanthomonas euroxanthea strain 3640 Ga0372500_01, whole genome shotgun sequence
+#=GS NZ_JACHNT010000003.1:c413090-412978   DE Xanthomonas arboricola strain F18 Ga0372562_03, whole genome shotgun sequence
+#=GS NZ_JBEPOR010000003.1:c597681-597539   DE Bradyrhizobium sp. S3.2.12 Ga0500324_03, whole genome shotgun sequence
+#=GS NZ_JNFG01000043.1:c37775-37605        DE Caballeronia sordidicola strain S170 NODE_57, whole genome shotgun sequence
+#=GS RBTK01000071.1:85374-85530            DE Pseudomonas coronafaciens pv. atropurpurea strain ICMP 4328 ParICMP4328_Contig_19, whole genome shotgun sequence
+#=GS NZ_LJPS01000063.1:70476-70632         DE Pseudomonas coronafaciens pv. atropurpurea strain ICMP 4457 ParICMP4457_Contig_11, whole genome shotgun sequence
+#=GS NZ_CP077721.1:c4961486-4961330        DE Pseudomonas viridiflava strain StP4 chromosome
+#=GS NZ_QPBR01000058.1:28561-28717         DE Pseudomonas syringae pv. syringae strain 538 Contig_58, whole genome shotgun sequence
+#=GS NZ_JBIVNG010000013.1:c130052-129896   DE Pseudomonas sp. NPDC088368 NPDC088368_156_A9.ctg-0013, whole genome shotgun sequence
+#=GS NZ_FNTI01000001.1:4174937-4175080     DE Bradyrhizobium lablabi strain GAS522, whole genome shotgun sequence
+#=GS NZ_CP152412.1:3712319-3712462         DE Bradyrhizobium sp. B097 chromosome, complete genome
+#=GS NZ_WVTP01000003.1:c356971-356792      DE Pseudomonas oryzihabitans strain L3570 wgs11.scaffold3, whole genome shotgun sequence
+#=GS NZ_JBHUIC010000005.1:c407928-407771   DE Pistricoccus aurantiacus strain KCTC 42586 soapdenovo_K_105_5, whole genome shotgun sequence
+#=GS JBKDEG010000070.1:32456-32605         DE MAG: Hyphomonadaceae bacterium isolate samp_2109_semibin_177 samp_2109_303146, whole genome shotgun sequence
+#=GS NZ_JAMLIE010000001.1:854908-855050    DE MAG: Aquamicrobium sp. isolate ACE_NR_PROT10 ACE_NR_PROT10_1, whole genome shotgun sequence
+#=GS NZ_JAVKFP010000016.1:c217426-217289   DE MAG: Parvibaculum sp. isolate F1-TOW-04 k141_49376, whole genome shotgun sequence
+#=GS NZ_JALJZA010000001.1:c1306064-1305922 DE Bradyrhizobium japonicum strain USDA 28 Ga0485018_01, whole genome shotgun sequence
+#=GS NZ_DAMBKV010000003.1:4333-4443        DE MAG: Stenotrophomonas sp. isolate CTOTU49008 NODE_4_length_359787_cov_21.070525, whole genome shotgun sequence
+#=GS NZ_JAZHSC010000001.1:6497603-6497746  DE Bradyrhizobium sp. AZCC 1588 Ga0592902_01, whole genome shotgun sequence
+#=GS NZ_JAZKLZ010000001.1:c5821683-5821540 DE Bradyrhizobium sp. AZCC 1614 Ga0592901_01, whole genome shotgun sequence
+#=GS NZ_JACVBI010000014.1:c3061-2892       DE Pseudomonas sp. PDM09 NODE_14_length_184468_cov_37.861024, whole genome shotgun sequence
+#=GS NZ_CP026000.1:2868013-2868123         DE Stenotrophomonas sp. ZAC14D1_NAIMI4_6 chromosome
+#=GS NZ_JAUEUN010000002.1:c781787-781645   DE Bradyrhizobium sp. SZCCHNR3142 NODE_2, whole genome shotgun sequence
+#=GS NZ_JAUEWR010000001.1:c781800-781658   DE Bradyrhizobium sp. SZCCHNR3043 NODE_1, whole genome shotgun sequence
+#=GS NZ_CAXAQB010000001.1:312178-312347    DE Pseudomonas proteolytica isolate PseudoSSchier:P39 RA_5y_Pfl1_P39_NODE_1_length_442782_cov_7.031505, whole genome shotgun sequence
+#=GS NZ_JASERT010000001.1:1327709-1327849  DE Asticcacaulis carbonis strain EMRT-3 contig1, whole genome shotgun sequence
+#=GS NZ_LSOF01000007.1:35384-35549         DE Pseudomonas sp. BMS12, whole genome shotgun sequence
+#=GS NZ_BSFN01000015.1:c35373-35208        DE Pseudomonas turukhanskensis strain VKM B-2935 spades_K_25_97_15, whole genome shotgun sequence
+#=GS NZ_JACUUA010000080.1:c5317-5155       DE MAG: Marinospirillum sp. isolate Kmv19 NODE_2120_length_14262_cov_21.947350, whole genome shotgun sequence
+#=GS NZ_JAXBQU010000002.1:c80222-80112     DE Stenotrophomonas pavanii strain ER024 NODE_2_length_174360_cov_127.188727, whole genome shotgun sequence
+#=GS NZ_JBDLLS010000001.1:2476233-2476406  DE Pseudomonas aeruginosa strain HLHR Scaffold_1, whole genome shotgun sequence
+#=GS NZ_CP072547.1:c459696-459558          DE Brucella sp. 458 chromosome 2, complete sequence
+#=GS NZ_QJUJ01000001.1:c604988-604823      DE Phytopseudomonas daroniae strain P18A NODE_1_length_1089105_cov_48.763442, whole genome shotgun sequence
+#=GS NZ_JAACZO010000023.1:c358-205         DE Halomonas faecis strain JSM 104105 NODE_30, whole genome shotgun sequence
+#=GS NZ_VEIU01000003.1:c200151-199974      DE Agrobacterium sp. DE0009 NODE_3_length_579028_cov_19.432817, whole genome shotgun sequence
+#=GS PGZF01000003.1:c664453-664324         DE MAG: Gammaproteobacteria bacterium HGW-Gammaproteobacteria-15 08E140C01_10kDa_scaffold_2, whole genome shotgun sequence
+#=GS NZ_BFBB01000010.1:c31590-31437        DE Leptospira ryugenii strain YH101 LRY_contig_10, whole genome shotgun sequence
+#=GS JAGLRU010000384.1:c2712-2569          DE MAG: Alphaproteobacteria bacterium isolate RS_9_27 ROV157_9.bin.27.fa_384, whole genome shotgun sequence
+#=GS NZ_AJPX01000367.1:7100-7246           DE Bradyrhizobium japonicum CCBAU 15354 Scaffold4.contig36, whole genome shotgun sequence
+#=GS JADUPI010000054.1:27364-27538         DE Stenotrophomonas maltophilia strain STEN00035 STEN00035_c0054, whole genome shotgun sequence
+#=GS NZ_FMYC01000003.1:c143085-142908      DE Agrobacterium fabrum strain NFIX02, whole genome shotgun sequence
+#=GS JAHJBX010000007.1:c1031244-1031100    DE MAG: Alphaproteobacteria bacterium isolate Modern_marine.mb.278 Modern_marine.mb.278_k141_890777, whole genome shotgun sequence
+#=GS NZ_JACJNI010000028.1:27616-27756      DE UNVERIFIED_ORG: Rhizobium esperanzae strain SEMIA 4053 Ga0394372_28, whole genome shotgun sequence
+#=GS NZ_JAWOUD010000026.1:c11991-11858     DE Vibrio sp. 736 NODE_26_length_15788_cov_80.018204, whole genome shotgun sequence
+#=GS NZ_JAHKQH010000042.1:258653-258793    DE Psychrosphaera sp. B3R10 B3R10_B3R10_contig_14, whole genome shotgun sequence
+#=GS NZ_JAVDRM010000001.1:c1369487-1369334 DE Paraburkholderia phenoliruptrix strain DS998 Ga0451235_01, whole genome shotgun sequence
+#=GS NZ_JH668202.1:c276684-276561          DE Cellvibrio sp. BR O59_Scaffold3, whole genome shotgun sequence
+#=GS DATNEE010000651.1:c356-231            DE MAG TPA_asm: Candidatus Acidiferrales bacterium isolate SMAG_U11260 k141_2700434, whole genome shotgun sequence
+#=GS NZ_CP159402.1:c152617-152472          DE Azospirillum formosense strain UWAZO-1 chromosome, complete genome
+#=GS NZ_JAWHTP010000004.1:226871-227023    DE Chromohalobacter sp. HP20-39 NODE_4_length_448459_cov_322.904376, whole genome shotgun sequence
+#=GS NZ_CP029064.1:c3368787-3368580        DE Microbulbifer sp. A4B17 chromosome, complete genome
+#=GS JAHKAG010000140.1:c5938-5765          DE MAG: Gammaproteobacteria bacterium isolate Undefined_mixed_planktonic.mb.24 Undefined_mixed_pl.mb.24_k141_432929, whole genome shotgun sequence
+#=GS NZ_CP101662.1:55744-55867             DE Cellvibrio sp. QJXJ chromosome
+#=GS NZ_CP025509.1:c1181808-1181668        DE Rhizobium leguminosarum bv. viciae strain UPM791 chromosome, complete genome
+#=GS NZ_CP132333.1:2530889-2531047         DE Geothrix sp. PMB-07 chromosome, complete genome
+#=GS NZ_SUNB01000001.1:c328705-328565      DE Pleionea sediminis strain S1-5-21 NODE_1_length_2360749_cov_59.598, whole genome shotgun sequence
+#=GS NZ_JAPWKB010000019.1:c379218-379064   DE MAG: Paraburkholderia sp. isolate Chal_Metagen_Bin7 14357, whole genome shotgun sequence
+#=GS NZ_MLCU01000082.1:c101426-101264      DE Pseudomonas lundensis strain AU14541 Contig82, whole genome shotgun sequence
+#=GS PAMZ01000022.1:305503-305630          DE MAG: Halobacteriovoraceae bacterium isolate SAT2788 MHASMcontig_1016367, whole genome shotgun sequence
+
+DAQCPM010000011.1:c16965-16828                AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_CP156673.1:c865054-864917                  AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_CP115035.1:1173358-1173495                 AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+DACZSL010000001.1:c28747-28610                AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+DAOXWW010000001.1:c63144-63007                AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+JBHGRT010000002.1:c28558-28421                AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+CP043766.1:c633253-633116                     AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_CAIZTO010000012.1:121480-121617            AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_FKAX01000002.1:448386-448523               AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_FKCV01000002.1:572002-572139               AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_UNPX01000014.1:68084-68221                 AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+JAMYDG010000482.1:5286-5423                   AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_JAMGKV010000006.1:c28872-28735             AGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+DAJESM010000039.1:9917-10054                  UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+DBAYPE010000032.1:10064-10201                 UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+JAVWZZ010000020.1:4115-4252                   UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+JAAULA010000009.1:236295-236432               UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_LNHZ01000002.1:86594-86731                 UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_CP181249.1:c3658661-3658524                UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_JAHTVZ010000013.1:c42601-42464             UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_CALECD010000001.1:11772-11909              UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_CP136828.1:1300247-1300384                 UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_JASMVZ010000028.1:51818-51955              UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_JALMON010000009.1:c21403-21266             UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_CP053259.1:1141465-1141602                 UGCA.ACCAAUAU..GCCCUACA.CGAUUUU------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+JAHAGJ010000068.1:4037-4174                   UGCA.ACCAAUAU..GCCCUACA.CGAUUUA------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_JARLLJ010000004.1:c85047-84910             UGCA.ACCAAUAU..GCCCUACA.CGAUUUA------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_JABJXJ010000006.1:331420-331557            UGCA.ACCAAUAU..GCCCUACA.CGAUUUA------.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+ABOMLX010000015.1:c63184-63046                AGCA.ACCAAUAU..GCCCUAAA.CGAUAUUU-----.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+DARSOJ010000012.1:55226-55364                 AGCA.ACCAAUAU..GCCCUAAA.CGAUAUUU-----.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+DAXWQX010000006.1:57285-57423                 AGCA.ACCAAUAU..GCCCUAAA.CGAUAUUU-----.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+DBDJCB010000008.1:c201629-201491              AGCA.ACCAAUAU..GCCCUAAA.CGAUAUUU-----.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+NZ_PXKH01000007.1:c204328-204190              AGCA.ACCAAUAU..GCCCUAAA.CGAUAUUU-----.....................----....................................................................................................UCGAUAUACUAGGGCu.....gaUUACGGUAGGUAAGU
+JBGRNG010000005.1:287636-287800               GGUA.GCCAACAU..GCUCUCCA.CGCUGGAUGAUUUac................uggUCUG....................................................................................................GCGAUUUACCUACGUac...ugaACUGCGCAGGCACUU
+NZ_JAWUDN010000002.1:c392944-392815           AGUA.GCCAAUAU..GCCCUCUA.CGUA--U------.....................----....................................................................................................ACGAUAUACUAGUUA........UUAGCCAAUCUAAGA
+ABXKYY010000005.1:c277559-277430              AGUA.GCCAAUAU..GCCCUCUA.CGUU--U------.....................----....................................................................................................ACGAUAUACUAGUUA........AUAGCCAAUCUAAGA
+DANMWD010000042.1:c7343-7214                  AGUA.GCCAAUAU..GCCCUCUA.CGUU--U------.....................----....................................................................................................ACGAUAUACUAGUUA........AUAGCCAAUCUAAGA
+DANMWK010000035.1:c28570-28441                AGUA.GCCAAUAU..GCCCUCUA.CGUU--U------.....................----....................................................................................................ACGAUAUACUAGUUA........AUAGCCAAUCUAAGA
+NZ_CQBH01000006.1:c253941-253812              AGUA.GCCAAUAU..GCCCUCUA.CGUU--U------.....................----....................................................................................................ACGAUAUACUAGUUA........AUAGCCAAUCUAAGA
+NZ_CPZL01000003.1:c72112-71983                AGUA.GCCAAUAU..GCCCUCUA.CGUU--U------.....................----....................................................................................................ACGAUAUACUAGUUA........AUAGCCAAUCUAAGA
+NZ_CP173224.1:c3782844-3782715                AGUA.GCCAAUAU..GCCCUCUA.CGUU--U------.....................----....................................................................................................ACGAUAUACUAGUUA........AUAGCCAAUCUAAGA
+NZ_CP133783.1:c337570-337406                  AGUA.GCCAAUAU..ACCCUCCG.CGUCUUCUGUAUCu..................agGUUG....................................................................................................GCGCUUUAC------........UUGCCUCUUGAAGCU
+NZ_JASJWP010000015.1:3380-3544                AGUA.GCCAAUAU..ACCCUCCG.CGUCUUCUGUAUCu..................agGUUG....................................................................................................GCGCUUUAC------........UUGCCUCUUGAAGCU
+NZ_AP021902.1:4137488-4137653                 AGUA.GCCAAUAU..ACUCUCCG.CGUCUUCCGUUUUu..................ugGUUG....................................................................................................GCGCUUUAC------........UUGCUUCUUGAAGCU
+NZ_FYDR01000001.1:931243-931391               GUUA.GUCAAUAU..AC-CUCCA.CGUAGCCCCUCAA.....................AGGC....................................................................................................GCGUUCCAUAC----........CUACGUAGCGAA--U
+NZ_SMYK01000007.1:c12979-12831                GUUA.GUCAAUAU..AC-CUCCA.CGUAGCCCCUCAA.....................AGGC....................................................................................................GCGUUCCAUAC----........CUACGUAGCGAA--U
+DAFSJJ010000013.1:31301-31465                 GGUA.GCCAACAU..GCUCUCCA.CGUUGGAUGAUUUac................uggUCUG....................................................................................................GCGAUUUACCUACGUac...ugaACUGCGCAGGCACUU
+DATZTT010000030.1:41737-41901                 GGUA.GCCAACAU..GCUCUCCA.CGUUGGAUGAUUUac................uggUCUG....................................................................................................GCGAUUUACCUACGUac...ugaACUGCGCAGGCACUU
+NZ_CP072783.1:6091154-6091318                 GGUA.GCCAACAU..GCUCUCCA.CGUUGGAUGAUUUac................uggUCUG....................................................................................................GCGAUUUACCUACGUac...ugaACUGCGCAGGCACUU
+NZ_CP029693.1:c6232239-6232074                GGUA.GCCAAUAU..ACUCUCCG.CGUCUUCUGUUUUu..................ugUUUG....................................................................................................GCGCUUUAC------........UUGCCUCUAGAAGCU
+NZ_LDRY01000025.1:c26840-26702                AGCA.ACCAAGAU..GCCCUACA.CAUUAGU------.....................----....................................................................................................UUGAUAUACUCAUCU........UUCAUCUUUUUGAGA
+NZ_ML137047.1:c3225753-3225615                AGCA.ACCAAGAU..GCCCUACA.CAUUAGU------.....................----....................................................................................................UUGAUAUACUCAUCU........UUCAUCUUUUUGAGA
+NZ_CP127228.1:5480550-5480711                 GGUA.GCCAAUAU..GCUCUCCG.CGCUUUCAGUUUUu..................agGUUG....................................................................................................GCGC---ACUUAC--........UUGCCUCUUGGAACU
+NZ_JAXDEU010000005.1:c364292-364127           AGUA.GCCAAUAU..ACUCUCCG.CGUCUUCUGUGUUc..................ugGUUG....................................................................................................GCGCUUUAC------........UUGCCUCUUGAAGCU
+NZ_PHHE01000001.1:c5083897-5083747            GUUA.GUCAAUAU..AC-CUCCA.CGCGGCCCCUCAGa...................aGGCU....................................................................................................GCGUUUCAUAC----........CUACUUAGCGAA--U
+NZ_UTIB01000079.1:c410492-410342              GUUA.GUCAAUAU..AC-CUCCA.CGCGGCCCCUCAGa...................aGGCU....................................................................................................GCGUUUCAUAC----........CUACUUAGCGAA--U
+NZ_JABWQK020000001.1:1301137-1301287          GUUA.GUCAAUAU..AC-CUCCA.CGCGGCCCCUCAGa...................aGGCU....................................................................................................GCGUUUCAUAC----........CUACUUAGCGAA--U
+NZ_JAQJVM010000002.1:901163-901313            GUUA.GUCAAUAU..AC-CUCCA.CGCGGCCCCUCAGa...................aGGCU....................................................................................................GCGUUUCAUAC----........CUACUUAGCGAA--U
+NZ_KZ268676.1:45892-46030                     AGCA.ACCAAGAU..GCCCUACA.CAUUAGU------.....................----....................................................................................................UUGAUAUACUCAUCU........UUCAUCUUUUUGAGA
+NZ_JACGXJ010000001.1:46038-46176              AGCA.ACCAAGAU..GCCCUACA.CAUUAGU------.....................----....................................................................................................UUGAUAUACUCAUCU........UUCAUCUUUUUGAGA
+NZ_JAXCWZ010000006.1:4468-4606                AGCA.ACCAAGAU..GCCCUACA.CAUUAGU------.....................----....................................................................................................UUGAUAUACUCAUCU........UUCAUCUUUUUGAGA
+NZ_CP010415.1:c553175-553014                  GGUA.GCCAAUAU..ACUCUCUG.CGUCCUCGGUUUUu..................agGUUG....................................................................................................GCGCUAUUAC-----........UUGCCUCUUGAAGCU
+NZ_CAWOFI010000173.1:9880-10012               AGUA.ACCAAUAU..GCCCUCUA.CGUU--A------.....................----....................................................................................................ACGAUAUACUCAU--........UUCUGGUAAGUAAUU
+NZ_CAWOQH010000188.1:76211-76343              AGUA.ACCAAUAU..GCCCUCUA.CGUU--A------.....................----....................................................................................................ACGAUAUACUCAU--........UUCUGGUAAGUAAUU
+NZ_CAKAKK010000002.1:26255-26422              CGUG.GCCAAUAU..ACUCUCCG.CGCUUUCACGCAGca.................ccGUUA....................................................................................................GCGCUUUAUAC----........UUGCCUCUAGAAACU
+NZ_JACAQE010000002.1:573997-574160            AGUG.GUCAAGAU..ACUCUCCA.CGGUUCUGAAGCUugc...............ugaGGAG....................................................................................................CCGAUUACCUUUCACaaa..gggUGCGAUGCUCCGUAA
+NZ_JAVDWT010000004.1:c467569-467420           GUUA.GUCAAUAU..AC-CUCCA.CGUUGGCCCUCAA....................gGGCC....................................................................................................GCGUUUCAUAC----........CUGCGCGGCGAA--U
+NZ_CAXAQE010000005.1:c23127-22985             GAUG.GUCAAUAU..ACCCUCCA.CGCCUGGUUUU--.....................-UGG....................................................................................................GCGAUU-ACUCGGA-........UAUGAGGUGCUGAAC
+NZ_KL647095.1:c227721-227555                  GGUA.GCCAACAU..GCUCUCCA.CGCUGGAUGCGUUuu................cgaUCUG....................................................................................................GCGAUUUACCUACGUa......uUGAACUGCGCAGGCA
+NZ_JADUCQ010000001.1:c163479-163313           GGUA.GCCAACAU..GCUCUCCA.CGCUGGAUGCGUUuu................cgaUCUG....................................................................................................GCGAUUUACCUACGUa......uUGAACUGCGCAGGCA
+NZ_AYTD01000001.1:c66530-66389                GAUG.GUCAAUAU..ACCCUCCA.CGCCUGCUUUU--.....................-UGG....................................................................................................GCGAUU-ACUCGGA-........UAUGAGGUGCUGAAC
+NZ_JAOTNX010000010.1:c90132-89991             GAUG.GUCAAUAU..ACCCUCCA.CGCCUGCUUUU--.....................-UGG....................................................................................................GCGAUU-ACUCGGA-........UAUGAGGUGCUGAAC
+DAZTFF010000056.1:c12446-12284                GAUG.GCCAAGAU..ACUCUCCA.CGACUCGGAUGCUug................cguACGA....................................................................................................GCGAUUACCUCCAGUaaa..aggUGCGAUGCUCCGUAA
+STVZ01000036.1:30400-30562                    GAUG.GCCAAGAU..ACUCUCCA.CGACUCGGAUGCUug................cguACGA....................................................................................................GCGAUUACCUCCAGUaaa..aggUGCGAUGCUCCGUAA
+NZ_CP050324.1:754891-755053                   GAUG.GCCAAGAU..ACUCUCCA.CGACUCGGAUGCUug................cguACGA....................................................................................................GCGAUUACCUCCAGUaaa..aggUGCGAUGCUCCGUAA
+NZ_AWZE01001985.1:c3128-2966                  GAUG.GCCAAGAU..ACUCUCCA.CGACUCGGAUGCUug................cguACGA....................................................................................................GCGAUUACCUCCAGUaaa..aggUGCGAUGCUCCGUAA
+NZ_CP137621.1:3019894-3020057                 AGUG.GUCAAGAU..ACUCUCCA.CGGCUCUGAAGCUugc...............ugaUGAG....................................................................................................CCGAUUACCUUUCACaaa..gggUGCGAUGCUCCGUAA
+NZ_JBDJMM010000011.1:75361-75524              AGUG.GUCAAGAU..ACUCUCCA.CGGCUCUGAAGCUugc...............ugaUGAG....................................................................................................CCGAUUACCUUUCACaaa..gggUGCGAUGCUCCGUAA
+NZ_JABWQI010000031.1:49509-49650              GAUG.GUCAAUAU..ACCCUCCA.CGCCUGCUUUU--.....................-UGG....................................................................................................GCGAUU-ACUCGGA-........UAUGAGGUGCUGAAC
+NZ_AVFN01000051.1:16743-16907                 GAUG.GCCAAGAU..ACUCUCCA.CGACUCGGAUGCUugc...............ugaAGAG....................................................................................................GCGAUUACCUCUUGUaaa..gggUGGGAUGCUCCGUAA
+NZ_CP081200.1:c2990018-2989853                GAUG.GCCAAGAU..ACUCUCCA.CGACUCGGAUGCUugc...............ugaAGAG....................................................................................................GCGAUUACCUCUUGUgaa..aggUGAAAUACUCUGUAA
+NZ_CP076386.1:2799705-2799832                 GACA.GUCAAUAU..ACCCUCUA.CGUUAU-------.....................----....................................................................................................ACGAUAUACUUGCUUuguuugauUAUAAGCAGAU----
+NZ_CP162411.1:439150-439277                   GACA.GUCAAUAU..ACCCUCUA.CGUUAU-------.....................----....................................................................................................ACGAUAUACUUGCUUuguuugauUAUAAGCAGAU----
+NZ_CP040815.1:c4306423-4306296                GACA.GUCAAUAU..ACCCUCUA.CGUUAU-------.....................----....................................................................................................ACGAUAUACUUGCUUuguuugauUAUAAGCAGAU----
+NZ_JBIWEM010000003.1:143753-143916            AAUG.GUCAAGAU..ACUCUCCA.CGGUUCUGAAGCUugc...............ugaUGGG....................................................................................................CCGAUUACCUUUCACaaa..gggUGCGAUGCUCCGUAA
+NZ_KB316290.1:c817433-817270                  GAUG.GCCAAUAU..ACUCUCCA.CGUCUUGGAUGCUugc...............ugaAAAG....................................................................................................GCGAUUACCUCUUGUaaa..aggUGAAAUGCUCCAUAA
+NZ_CAKKMU010000104.1:c1978-1844               GGCG.GUCAAGAU..ACCCUAUG.CGUUGUUUACA--.....................----....................................................................................................GCGAUU-ACCUGGGC.......aUCAGAGCAGGAAACA
+JBEZUF010000007.1:28680-28829                 GGUG.GUCAAUAU..CC-CUCUA.CGUCCUGCCUGAAa..................agGUAG....................................................................................................GCGUUUCAUAC----........CUGCGUAGUGAA--A
+NZ_JAOXKY010000009.1:23221-23370              GGUG.GUCAAUAU..CC-CUCUA.CGUCCUGCCUGAAa..................agGUAG....................................................................................................GCGUUUCAUAC----........CUGCGUAGUGAA--A
+NZ_CADEQQ010000011.1:c47707-47552             GAUA.GUCGAUAU..GCUCUCCA.CAGAGCUGUUCGAg...................uAAUA....................................................................................................CUGUCAUACGC----........CUCGGGCGCGAU---
+NZ_CADESM010000004.1:450842-450997            GAUA.GUCGAUAU..GCUCUCCA.CAGAGCUGUUCGAg...................uAAUA....................................................................................................CUGUCAUACGC----........CUCGGGCGCGAU---
+NZ_CADFEY010000015.1:c40518-40363             GAUA.GUCGAUAU..GCUCUCCA.CAGAGCUGUUCGAg...................uAAUA....................................................................................................CUGUCAUACGC----........CUCGGGCGCGAU---
+NZ_CP071825.1:c1184826-1184671                GAUA.GUCGAUAU..GCUCUCCA.CAGAGCUGUUCGAg...................uAAUA....................................................................................................CUGUCAUACGC----........CUCGGGCGCGAU---
+NZ_CP109821.1:2511838-2511993                 GAUA.GUCGAUAU..GCUCUCCA.CAGAGCUGUUCGAg...................uAAUA....................................................................................................CUGUCAUACGC----........CUCGGGCGCGAU---
+NZ_LPDZ01000234.1:c6043-5888                  GAUA.GUCGAUAU..GCUCUCCA.CAGAGCUGUUCGAg...................uAAUA....................................................................................................CUGUCAUACGC----........CUCGGGCGCGAU---
+NZ_LPDA01000045.1:136271-136426               GAUA.GUCGAUAU..GCUCUCCA.CAGAGCUGUUCGAg...................uAAUA....................................................................................................CUGUCAUACGC----........CUCGGGCGCGAU---
+NZ_CP134498.1:c5130570-5130412                AGUG.GUCAAUAG..CUCCUCCG.CGUUAAUUGUUU-.....................----....................................................................................................ACGAUUCGCUUGUACu.....acCUACCACAAGAAAUA
+NZ_WKDG01000080.1:c1800-1657                  GGUG.GCCGAUAU..ACCCUCUA.CGUCGCUU-----.....................--AG....................................................................................................GCGGCGAACACUCGGa.....ccUCAGGUGCUGAACAC
+NZ_KI911362.1:31860-32009                     GGUG.GUCAAUAU..CC-CUCUA.CGUUCUGCUCAAAa..................agGUAG....................................................................................................GCGUUUCAUAC----........CUGCGUAGUAAA--A
+NZ_FOHW01000016.1:c28038-27899                GAUG.GCCAAUAU..GCUCUCUA.CGGGCUUCGGC--.....................----....................................................................................................ACGGUU-ACUCAGG-........UAUGAGACACGG--A
+NZ_PRLP01000009.1:c19469-19300                GGUA.GUCAACAU..CC-CUCUG.CGUUCACC-----cc.................ggGUGG....................................................................................................GCGUUUUAUAC----........CGGCGCAGUGAA--A
+JAHHZP010000002.1:c277147-276977              GUUG.UUCAAUAU..GCUCUCGA.CGUGCGAAUAUGGgaa...............cauUCAG....................................................................................................ACGC---GCAC----........UGUCAUACGGAA--U
+NZ_CAJNAV010000010.1:204592-204762            GUUG.UUCAAUAU..GCUCUCGA.CGUGCGAAUAUGGgaa...............cauUCAG....................................................................................................ACGC---GCAC----........UGUCAUACGGAA--U
+NZ_JOKD01000010.1:c188792-188633              GAUG.GCCAAUAU..U-GCUUUA.UUUCACUUACU--....................aCGUG....................................................................................................AAAUCUUUCA-----........CUUCUCUCAAAUACC
+NZ_LBJZ01000179.1:c98347-98205                GUCG.UUCAAGAC..AG-CUACC.GGCGGAGUUUCUC.....................CGCU....................................................................................................GCCACGUAAGGGUCGa.....cgUCAGUUGGGUUAAUU
+JBGWZM010000004.1:c140173-139905              GAUA.GCCAAUAU..GCUCUCAA.CUCUGAUAUUAAG.....................----cuaaggagugcguucgcgcacuccuaucagcaaugauauggagucuuggaaaaccuagguuuccaaguaugacaugucugagcugugcggcgauauuucaGGGUCAUACAUUUG-........UUCUUUGUUCAUGUU
+JBKAQB010000053.1:c871-603                    GAUA.GCCAAUAU..GCUCUCAA.CUCUGAUAUUAAG.....................----cuaaggagugcguucgcgcacuccuaucagcaaugauauggagucuuggaaaaccuagguuuccaaguaugacaugucugagcugugcggcgauauuucaGGGUCAUACAUUUG-........UUCUUUGUUCAUGUU
+NZ_SPQT01000034.1:90270-90412                 GUCG.UUCAAGAC..AG-CUACC.GGCGGAGUUUCUC.....................CGCU....................................................................................................GCCACGUAAGGGUCGa.....cgUCAGUUGGGUUAAUU
+NZ_JBEPQW010000004.1:60305-60447              GUCG.UUCAAGAC..AG-CUACC.GGCGGAGUUUCUC.....................CGCU....................................................................................................GCCACGUAAGGGUCGa.....cgUCAGUUGGGUUAAUU
+NZ_JAXOFN010000042.1:54057-54216              GGCC.GCCAAGAA..CCUCUCCA.GCGGAUGAACA--.....................UCUC....................................................................................................CGCAACUACUUUAAU........AUCGACGCGCGGGGA
+NZ_BCNS01000022.1:5641-5792                   GGUG.ACCAAUAU..U-GCUCCAaCUGCAAAUAUAUA.....................UUUG....................................................................................................CAGUUUUUCGCUUGG........UUUAAUCCAUGGUGC
+NZ_KB899131.1:c2393-2242                      GGUG.ACCAAUAU..U-GCUCCAaCUGCAAAUAUAUA.....................UUUG....................................................................................................CAGUUUUUCGCUUGG........UUUAAUCCAUGGUGC
+NZ_RQIT01000018.1:15330-15472                 GUCG.UUCAAGAC..AG-CUACC.GGCGGAGUUUCUC.....................CGCU....................................................................................................GCCACGUAAGGGCCGa.....cgUCAGUUGGGGUAAUU
+NZ_HG992336.1:102216-102328                   GGCA.GUCAAUAG..GCCU----.UGUUUUUGAUUUCuaccg...........aagccCAUG....................................................................................................GCAGCA---------........---------------
+NZ_JACHOI010000001.1:198935-199048            AGCA.GUCAAUAG..GCCU----.UGUUUUUGAUUUUcuacu..........gaagccCAUG....................................................................................................GCAGUAU--------........---------------
+NZ_JACHNT010000003.1:c413090-412978           GGCA.GUCAAUAG..GCCU----.UGUUUUUGAUUUCuaccg...........aagccCACG....................................................................................................GCAGCA---------........---------------
+NZ_JBEPOR010000003.1:c597681-597539           GUCG.UUCAAGAC..AG-CUACC.GGCGGAGUUUCUC.....................CGCU....................................................................................................GCCACGUAAGGGUCGa.....cgUCAGUUGGGUUAAUU
+NZ_JNFG01000043.1:c37775-37605                GUUG.CUCAAUAU..GCUCUUGA.CGUGCGCAUACGGgaau.............auuuGUAA....................................................................................................GCGC---AC------........UGUCAUACGUAG--U
+RBTK01000071.1:85374-85530                    AGGG.GCUGAGAU..U-GCUGCG.GUACUGGGCUUCGg...................cCCAU....................................................................................................UACAUUUUCGCUUUU........UAUCAACCCUUUGCU
+NZ_LJPS01000063.1:70476-70632                 AGGG.GCUGAGAU..U-GCUGCG.GUACUGGGCUUCGg...................cCCAU....................................................................................................UACAUUUUCGCUUUU........UAUCAACCCUUUGCU
+NZ_CP077721.1:c4961486-4961330                AGGG.GCUGAGAU..U-GCUGCG.GUACUGGGCUUCGg...................cCCAU....................................................................................................UACAUUUUCGCUUUU........UAUCAACCCUUUGCU
+NZ_QPBR01000058.1:28561-28717                 AGGG.GCUGAGAU..U-GCUGCG.GUACUGGGCUCCGg...................cCCAU....................................................................................................UACAUUUUCGCUUUU........UAUCAACCCUUUGCU
+NZ_JBIVNG010000013.1:c130052-129896           AGGG.GCUGAGAU..U-GCUGCG.GUACUGGGCUUCGg...................cCCGU....................................................................................................UACAUUUUCGCUUUU........UAUCAACCCUUUGCU
+NZ_FNTI01000001.1:4174937-4175080             GCCG.CUCAAGAC..AG-CUACC.GGCGGAGUUUACU....................cCGCU....................................................................................................GCCACGUAAGGGGUGa.....cgACGGUCGGGGUAAUU
+NZ_CP152412.1:3712319-3712462                 GCCA.CCCAAGAU..AG-CUAUU.UGUUCGGGGCAAC.....................CCAA....................................................................................................ACAACU-GCG-----........UGGAAACGACGAAGU
+NZ_WVTP01000003.1:c356971-356792              GGUG.GCCAAUAU..GACCUUUA.CGGGUGUGAAAAC.....................AUAA....................................................................................................CCGUAAAAAUCGAUU........GUGCAAACAGUUGAU
+NZ_JBHUIC010000005.1:c407928-407771           GGCA.GCCAAUAU..U-GCUUUA.UAUCAUGCUCUGC....................gUGAA....................................................................................................AUUUCUCAC------........UUCACUCAAAGA-AU
+JBKDEG010000070.1:32456-32605                 GCUG.CCCAAUAA..ACGU-UUU.CAUACCGGUUUCG.....................AUAG....................................................................................................AUGGUU---------........CGCAAUCAUCGUUGU
+NZ_JAMLIE010000001.1:854908-855050            GUUG.CCCAAUAA..UCGCUUCA.GGCUUUUCGCAAGaa.................gaGUCU....................................................................................................GCCGCCUGCCA----........UCUCGACCGGGGCGA
+NZ_JAVKFP010000016.1:c217426-217289           GCUG.CUCAAUAC..CC-CUUCU.CUUUCGG--UUCG.....................CUGA....................................................................................................AAGAUUGACCUUAC-........UGGGAACCUGGAAGU
+NZ_JALJZA010000001.1:c1306064-1305922         GUCG.UCCAAGAC..AG-CUACC.AGCGGAGUUUCUC.....................CGUU....................................................................................................GCCACGUAAGGAUCGa.....cgUCAAUUGGGGUAAUU
+NZ_DAMBKV010000003.1:4333-4443                GGUG.GCCGAUAG..GCUC----.UGAAAUUU-----.....................----....................................................................................................GCAAUCUACUGGGAU........------G--------
+NZ_JAZHSC010000001.1:6497603-6497746          GCCG.UUCGAGAU..AG-CUAUU.UACUUGGGGUGAC.....................CUGG....................................................................................................GUAACU-ACG-----........ACGAGGCGACGACGU
+NZ_JAZKLZ010000001.1:c5821683-5821540         GCCG.UUCGAGAU..AG-CUAUU.UACUUGGGGUGAC.....................CUGG....................................................................................................GUAACU-ACG-----........ACGAGGCGACGACGU
+NZ_JACVBI010000014.1:c3061-2892               UGAG.GCCAAUAU..U-GCUCCG.GCCUGAAAUUUGCgaauccucg..gacaagcaagCUUA....................................................................................................GGCACUU-CAC----........GUUGAAUCAAGAGCC
+NZ_CP026000.1:2868013-2868123                 GGUG.GCCAAUAG..GCUU----.UGUCGGAUUUCUC.....................UACU....................................................................................................GCGGC----------........---------------
+NZ_JAUEUN010000002.1:c781787-781645           GUCG.UCCAAGAC..AG-CUACC.GGCGGAGUUCCUC.....................CGCU....................................................................................................GCCACGUAAGGGUCGa.....ugACAGCAGGGGUAAUU
+NZ_JAUEWR010000001.1:c781800-781658           GUCG.UCCAAGAC..AG-CUACC.GGCGGAGUUCCUC.....................CGCU....................................................................................................GCCACGUAAGGGUCGa.....ugACAGCAGGGGUAAUU
+NZ_CAXAQB010000001.1:312178-312347            UGAG.GCCAAUAU..U-GCUCCG.GCCUGAAAUUUGCgaauccucg..gacaagcaagCUUA....................................................................................................GGCACUU-CAC----........GCUGAAUCAAGAGCC
+NZ_JASERT010000001.1:1327709-1327849          GCUG.CUCAAUAC..CCCCUCUA.CCGUCGGGC----g...................aCCGA....................................................................................................CGGGUACACUGGCA-........UGGCAACCUAUUCGG
+NZ_LSOF01000007.1:35384-35549                 AGAG.GUCAAGAU..U-GCUAUG.GCGCUGGACGAUAgauucu.........uauccuACAA....................................................................................................CGCAUUU---CGCUC........GUUGCUUUAUUAAGG
+NZ_BSFN01000015.1:c35373-35208                AGAG.GUCAAGAU..U-GCUAUG.GCGCUGGACGAUAgauucu.........uauccuACAA....................................................................................................CGCAUUU---CGCUC........GUUGCUUUAUUCAGA
+NZ_JACUUA010000080.1:c5317-5155               GGUGgGUCAAUAU..U-GCUUUA.UUUUGCACGUUCAca.................cgUUGC....................................................................................................AAAAUUU--------........UUCGCCUCAACAAAU
+NZ_JAXBQU010000002.1:c80222-80112             GGUG.GCCAAUAG..GCUU----.UGUCGGAUUUCUC.....................UACU....................................................................................................GCGG-----------........---------------
+NZ_JBDLLS010000001.1:2476233-2476406          GGUG.GCCAACAU..CC-CUCUG.CGUGAGCUUAA--.....................-GCC....................................................................................................GCGU---UCGCGCGC.......aCUUGGGCAAGCG--U
+NZ_CP072547.1:c459696-459558                  GCUA.UCCAAUAC..C-CCUUCA.CUUCCGGCA----.....................ACGG....................................................................................................AAGCCUGACCUUUUU.......gAGACACUGGCGGUGA
+NZ_QJUJ01000001.1:c604988-604823              AGAG.GUCAAGAU..U-GCUAUG.GCGCGGAACGAUAgauucu.........uauccuACAA....................................................................................................CGCAUUU---CGCUC........UUGUUUUCAUUCAGA
+NZ_JAACZO010000023.1:c358-205                 GAUG.GCCAAUAU..U-GCUUUA.UUUACGC------.....................----....................................................................................................GUGACGUAAAUGUUUc.....gcUUCAUUCAAGGAA-C
+NZ_VEIU01000003.1:c200151-199974              AGCC.GUCAAUAC..CG-CUAUA.CUGCCCCUAUCAAggugaaagaaagccgacgaguGGAG....................................................................................................CAGAUUUGACA----........GCCGUUUGGUUUUGA
+PGZF01000003.1:c664453-664324                 UAGA.GUCAAUAU..U-ACUCAA.GCAUAAUAU----.....................----....................................................................................................UGCGUUUUCG-----........UUAGAUCAAAACAAU
+NZ_BFBB01000010.1:c31590-31437                AGCG.CCCAAUAA..GCCCUUAA.CGUCAAUGAAUUUcc................aucUUUG....................................................................................................ACGGCAAACU-----........UUGAUUUUUAUUCUA
+JAGLRU010000384.1:c2712-2569                  GUUC.GCCAAUAU..UACUUCCA.UAAAUUUGAUGCUug................uauCAAA....................................................................................................UUUAUCUUCGA----........UAAAAGCAUACAAUU
+NZ_AJPX01000367.1:7100-7246                   GGUC.GCCAACAG..AGCAUUCU.AGCGGGCCUUAAA.....................AUCC....................................................................................................GCUACC-ACGCGCA-........AACCGAUGGCUCGGA
+JADUPI010000054.1:27364-27538                 GGCG.GCCAACAC..UC-CUAUC.CGUUCCGAAGUAGuu................uuuCGGG....................................................................................................ACGUCACACGU----........CUAACUGCGCGA--U
+NZ_FMYC01000003.1:c143085-142908              AGCU.GUCAAUAC..CG-CUAUA.CUGCCCCUAUCAAggugaaagaaagccgacgaguGGAG....................................................................................................CAGAUUUGACA----........GCCGUUUGGUUUUGA
+JAHJBX010000007.1:c1031244-1031100            GUCG.CUCAAGAU..AG-CUAUU.CGCUUGGGGCAAC.....................CCAU....................................................................................................GGGACA-ACGCUCAA........----UGCGACGCU-U
+NZ_JACJNI010000028.1:27616-27756              GCUA.CUCAAUAC..C-ACUUCG.UUCCUGGGU--AA.....................CUGG....................................................................................................GAACCUGACCUCUUU.......gAGAGACCGGAGAUGU
+NZ_JAWOUD010000026.1:c11991-11858             AGCA.GCCAAUAU..U-ACUCAA.GUGGAUCUUGAUC.....................----....................................................................................................CACGUGUUCGCGCAGc......c--A------------
+NZ_JAHKQH010000042.1:258653-258793            AAAG.GUCAAUAU..A-ACUCAA.GUAACUAGCUACG.....................GUUG....................................................................................................GUUAUGU--------........UGUCUGUCGAGAAAA
+NZ_JAVDRM010000001.1:c1369487-1369334         GGUG.GCCAAC--..-UCCUCCA.CAGAAGCCGCUAAcac...............gggGUGA....................................................................................................CUGU---ACUUCUAU.......gCUGGGUACAUAUAGU
+NZ_JH668202.1:c276684-276561                  AGAGuGGCAAUAU..U-GCUUUU.GA-----------.....................----...................................................................................................u-UCAUUUUCGC----........GUUAAGUUUUGAGGU
+DATNEE010000651.1:c356-231                    GGCC.ACCAACAG..AACC---U.UGAAAUU------.....................----....................................................................................................UCUACCUACCUAAGCu.....auUUCGUGCCGCUA---
+NZ_CP159402.1:c152617-152472                  ACUG.UGCAAUAC..CGCCG--A.CCGUUCUGCUCUU.....................GCAG....................................................................................................CGGAUCGGCUUACCG.......cCUGCGGAUGGUACC-
+NZ_JAWHTP010000004.1:226871-227023            ----.-----GAU..G-GCUCAG.AUUGCUUUAUUUGcgu..............uuagCGCA....................................................................................................AAUGUUUUCG-----........CUUCGCUCAGGAAAU
+NZ_CP029064.1:c3368787-3368580                AGGG.AGCAAUAG.cAGGCUCUA.CUAGAGAGG----.....................----....................................................................................................UCGAUGUAUUAUUUGc......uUUGAAUUCUCGAGCA
+JAHKAG010000140.1:c5938-5765                  GGCG.GCCAACAC..UC-CUAUC.CGUGCUGCGGCAAaa................uugGAGC....................................................................................................ACGUCAUACGU----........CUAGUUGCGCAA--U
+NZ_CP101662.1:55744-55867                     AGAGuGGCAAUAU..U-GCUUUU.GA-----------.....................----...................................................................................................u-UCAUUUUCGC----........GUUAAUUUUUGAGGU
+NZ_CP025509.1:c1181808-1181668                GCUA.CUCAAUAC..C-ACUUCG.UUCCUGGGU--AA.....................CUGG....................................................................................................GAACCUGACCUCUUU.......gAGAGACCGGAGAUGU
+NZ_CP132333.1:2530889-2531047                 GGUG.GCAAAGAUcc-CUC-UUC.GGAUGACCUUUUG.....................GUCA....................................................................................................UCCGCUUCUCUGGG-........UGAAUGGCAGG-AAA
+NZ_SUNB01000001.1:c328705-328565              GAAG.GCCGAUAU..U-GCUCUA.UGAGCUUGUGUUU....................cUUUU....................................................................................................UGAACUUAAA-----........CUCAUCUUUCAUAGA
+NZ_JAPWKB010000019.1:c379218-379064           GGUA.GCCAGC--..-UCCUCCA.CAGGAGCCGCUAGuac..............agcgGUGA....................................................................................................CUGU---ACUU----........CUAUUCCGGGUA---
+NZ_MLCU01000082.1:c101426-101264              GGGG.GCUAAGAU..U-GCUGCG.GUACCGAGACACAauaauu.........uguguuUUAG....................................................................................................UGCAUUUUCGC----........-------UACUACUU
+PAMZ01000022.1:305503-305630                  ----.--------..--------.--AUUGC------.....................----....................................................................................................UCAACAAUCU-----........CUUUUGCGGAAAAAU
+#=GC SS_cons                                  :(((.(((-----..-((((,,,.<<<__________.....................____~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>>,,,,,,,,,,,,........,,,,,<<<<<--<<_
+#=GC RF                                       Ggug.GCCAAUAU..aCcCUcCA.CGcuuuuguUuuu.....................cuag~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~gCGAUuUACucgugu........UUagauccucuAagU
+
+DAQCPM010000011.1:c16965-16828                UACAUGUAACCUGA.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_CP156673.1:c865054-864917                  UACUUGUAACCUGA.................C.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_CP115035.1:1173358-1173495                 UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+DACZSL010000001.1:c28747-28610                UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+DAOXWW010000001.1:c63144-63007                UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+JBHGRT010000002.1:c28558-28421                UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+CP043766.1:c633253-633116                     UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_CAIZTO010000012.1:121480-121617            UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_FKAX01000002.1:448386-448523               UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_FKCV01000002.1:572002-572139               UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_UNPX01000014.1:68084-68221                 UGCAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+JAMYDG010000482.1:5286-5423                   UACAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_JAMGKV010000006.1:c28872-28735             UACAUGUAACCUGG.................C.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+DAJESM010000039.1:9917-10054                  UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+DBAYPE010000032.1:10064-10201                 UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+JAVWZZ010000020.1:4115-4252                   UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+JAAULA010000009.1:236295-236432               UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_LNHZ01000002.1:86594-86731                 UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_CP181249.1:c3658661-3658524                UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_JAHTVZ010000013.1:c42601-42464             UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_CALECD010000001.1:11772-11909              UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_CP136828.1:1300247-1300384                 UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_JASMVZ010000028.1:51818-51955              UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_JALMON010000009.1:c21403-21266             UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_CP053259.1:1141465-1141602                 UACACGUAACCUUA.................G.......................................................................CUACCUUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+JAHAGJ010000068.1:4037-4174                   UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_JARLLJ010000004.1:c85047-84910             UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_JABJXJ010000006.1:331420-331557            UACACGUAACCUUA.................G.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+ABOMLX010000015.1:c63184-63046                UACAUGUGACCUAA.................U.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+DARSOJ010000012.1:55226-55364                 UACAUGUGACCUAA.................U.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+DAXWQX010000006.1:57285-57423                 UACAUGUGACCUAA.................U.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+DBDJCB010000008.1:c201629-201491              UACAUGUGACCUAA.................U.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+NZ_PXKH01000007.1:c204328-204190              UACAUGUGACCUAA.................U.......................................................................CUACCCUAUG...ACGCUCAAGAGCAGCA-...................A----............................UGCACACAC.UA..A
+JBGRNG010000005.1:287636-287800               UUUCGGUGAAUGCA.................A.......................................................................AGGAAUUGCG...----CGAGGAGCGGCUUcaau..........acaccGUAGC............................CGCACACAC.UU..A
+NZ_JAWUDN010000002.1:c392944-392815           CUUUCAACAGUUGA.................U.......................................................................UUGCGGCUU-...--UUUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+ABXKYY010000005.1:c277559-277430              CCUUCAACAGUUGA.................U.......................................................................UUGCGGCUU-...--UUUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+DANMWD010000042.1:c7343-7214                  CCUUCAACAGUUGA.................U.......................................................................UUGCGGCUU-...--UUUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+DANMWK010000035.1:c28570-28441                CCUUCAACAGUUGA.................U.......................................................................UUGCGGCUU-...--UUUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_CQBH01000006.1:c253941-253812              CCUUCAACAGUUGA.................U.......................................................................UUGCGGCUU-...--UUUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_CPZL01000003.1:c72112-71983                CCUUCAACAGUUGA.................U.......................................................................UUGCGGCUU-...--UUUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_CP173224.1:c3782844-3782715                CCUUCAACAGUUGA.................U.......................................................................UUGCGGCUU-...--UUUCAAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_CP133783.1:c337570-337406                  AACAAAUAUCCUUUuugg.........guagU.......................................................................GUUAGAAGAC...AGUUGCAGGAGCGACUUuugcu.........uagcaGAGGU............................UGCACACAC.UU..A
+NZ_JASJWP010000015.1:3380-3544                AACAAAUAUCCUUUuugg.........guagU.......................................................................GUUAGAAGAC...AGUUGCAGGAGCGACUUuugcu.........uagcaGAGGU............................UGCACACAC.UU..A
+NZ_AP021902.1:4137488-4137653                 AACAAGUAUCCUCUgcgg........auaaaU.......................................................................GGUAGAAGAC...AGUUGCAGGAGCGGUUUuugcu.........ucgcaGAGGC............................UGCACACAC.UU..A
+NZ_FYDR01000001.1:931243-931391               UUUUCAUCACCUCAu..............gg-...................................gua.............................gaug-AGGCGCUAG...CCGCGUAGGAGCGGUG-...................CAAGC............................CGUACACAC.UA..A
+NZ_SMYK01000007.1:c12979-12831                UUUUCAUCACCUCAu..............gg-...................................gua.............................gaug-AGGCGCUAG...CCGCGUAGGAGCGGUG-...................CAAGC............................CGUACACAC.UA..A
+DAFSJJ010000013.1:31301-31465                 UUUCGGUGAAUGCA.................A.......................................................................AGGAAUUGCG...----CGAGGAGCGGCUUcaau..........acaccGUAGC............................CGCACACAC.UU..A
+DATZTT010000030.1:41737-41901                 UUUCGGUGAAUGCA.................A.......................................................................AGGAAUUGCG...----CGAGGAGCGGCUUcaau..........acaccGUAGC............................CGCACACAC.UU..A
+NZ_CP072783.1:6091154-6091318                 UUUCGGUGAAUGCA.................A.......................................................................AGGAAUUGCG...----CGAGGAGCGGCUUcaau..........acaccGUAGC............................CGCACACAC.UU..A
+NZ_CP029693.1:c6232239-6232074                AACAAGUAUCCCCAgagg........auaagU.......................................................................GGGAGACGAC...AGUUGCAGGAGCGGCUUuugcu.........ucgcaGAGGU............................UGCACACAC.UU..A
+NZ_LDRY01000025.1:c26840-26702                CCUGAAAAAUUUCAuu.............ucU.......................................................................CACUAAUUAG...AGAUUUGAGAGCAGAA-...................A----............................UGCACACAC.CA..A
+NZ_ML137047.1:c3225753-3225615                CCUGAAAAAUUUCAuu.............ucU.......................................................................CACUAAUUAG...AGAUUUGAGAGCAGAA-...................A----............................UGCACACAC.CA..A
+NZ_CP127228.1:5480550-5480711                 AGUACGCAUCCUCUggg..........ugaaU.......................................................................AUUAGAGGAU...GGUUGCGAGAGCGGCAUuug............aaagAUUGC............................UGCACACAC.UU..A
+NZ_JAXDEU010000005.1:c364292-364127           AACAAAUAUCCUCUgugg........auaggU.......................................................................GGUAGAAGAC...AGUUGCAGGAGCGGUUUuugcu.........ucgcaGAGGC............................UGCACACAC.UU..A
+NZ_PHHE01000001.1:c5083897-5083747            UCUUCAUCACCUCAu..............gg-...................................guc.............................gaug-AGGCGCUAG...CUACCUAGGAGCGGUG-...................AAAGC............................CGUACACAC.UA..A
+NZ_UTIB01000079.1:c410492-410342              UCUUCAUCACCUCAu..............gg-...................................guc.............................gaug-AGGCGCUAG...CUACCUAGGAGCGGUG-...................AAAGC............................CGUACACAC.UA..A
+NZ_JABWQK020000001.1:1301137-1301287          UCUUCAUCACCUCAu..............gg-...................................guc.............................gaug-AGGCGCUAG...CUACCUAGGAGCGGUG-...................AAAGC............................CGUACACAC.UA..A
+NZ_JAQJVM010000002.1:901163-901313            UCUUCAUCACCUCAu..............gg-...................................guc.............................gaug-AGGCGCUAG...CUACCUAGGAGCGGUG-...................AAAGC............................CGUACACAC.UA..A
+NZ_KZ268676.1:45892-46030                     CCUGAAAAAAUUCAuu.............uuU.......................................................................CACUAAUUUG...AGAUGUGAGAGCAGAA-...................A----............................UGCACACAC.CA..A
+NZ_JACGXJ010000001.1:46038-46176              CCUGAAAAAAUUCAuu.............uuU.......................................................................CACUAAUUUG...AGAUGUGAGAGCAGAA-...................A----............................UGCACACAC.CA..A
+NZ_JAXCWZ010000006.1:4468-4606                CCUGAAAAAAUUCAuu.............uuU.......................................................................CACUAAUUUG...AGAUGUGAGAGCAGAA-...................A----............................UGCACACAC.CA..A
+NZ_CP010415.1:c553175-553014                  AGCAAGCAUCCUAUggg..........ugaaU.......................................................................GUUAGGAGAU...GGUUGCAGGAGCGGCAUccg............aaagGGUGC............................UGCACACAC.UU..A
+NZ_CAWOFI010000173.1:9880-10012               UCUAA---ACUUGAg..............cuC.......................................................................AUAGUUUAUGg.cAGAUUUGAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_CAWOQH010000188.1:76211-76343              UCUAA---ACUUGAg..............cuC.......................................................................AUAGUUUAUGg.cAGAUUUGAGAGCAGAA-...................A----............................UGCACACAC.UA..A
+NZ_CAKAKK010000002.1:26255-26422              GACAGGUAUCCUCUgcgg........auaagU.......................................................................GGAAGAAGAA...GGUUGCAGGAGCAGCUUuugc..........uugcaGAGGU............................UGCACACAC.UU..A
+NZ_JACAQE010000002.1:573997-574160            AGGAUGUCAUUUCAuaua.........uuguU.......................................................................UAAGGAGCA-...------ACUGGCUUUUG...................CUAGA............................AGCACACAC.UA..A
+NZ_JAVDWT010000004.1:c467569-467420           UCUUCAUCACCUCAu..............gg-...................................gua.............................gaug-GGGCGCUAG...GUGCGCAGGAGCGGCG-...................CAAGC............................CGUACACAC.UA..A
+NZ_CAXAQE010000005.1:c23127-22985             --------ACCUCCa...............u-......................................................................gCUAGGUGCC-...-UAUCCGGGAGCCUCAUuuu.............uagGAUGA............................GGCACACAC.UA..A
+NZ_KL647095.1:c227721-227555                  CUUUUUUUGGGUGA................aU.......................................................................GCAAAGGAAU...UUCGCGAGGAGCGGCCCcaau..........acaucGUGGC............................UGCACACAC.UU..A
+NZ_JADUCQ010000001.1:c163479-163313           CUUUUUUUGGGUGA................aU.......................................................................GCAAAGGAAU...UUCGCGAGGAGCGGCCCcaau..........acaucGUGGC............................UGCACACAC.UU..A
+NZ_AYTD01000001.1:c66530-66389                --------ACCUCCa...............u-......................................................................gCUAGGUGCC-...-UAUCCGGGAGCCUCAUuu..............uagGAUGA............................GGCACACAC.UA..A
+NZ_JAOTNX010000010.1:c90132-89991             --------ACCUCCa...............u-......................................................................gCUAGGUGCC-...-UAUCCGGGAGCCUCAUuu..............uagGAUGA............................GGCACACAC.UA..A
+DAZTFF010000056.1:c12446-12284                AGGAUGCCAUUUCAuaug.........uugcU.......................................................................UGGGGAGCA-...------AAUGGCUAUUG...................CCAGG............................AGCACACAC.UA..A
+STVZ01000036.1:30400-30562                    AGGAUGCCAUUUCAuaug.........uugcU.......................................................................UGGGGAGCA-...------AAUGGCUAUUG...................CCAGG............................AGCACACAC.UA..A
+NZ_CP050324.1:754891-755053                   AGGAUGCCAUUUCAuaug.........uugcU.......................................................................UGGGGAGCA-...------AAUGGCUAUUG...................CCAGG............................AGCACACAC.UA..A
+NZ_AWZE01001985.1:c3128-2966                  AGGAUGCCAUUUCAuaug.........uugcU.......................................................................UGGGGAGCA-...------AAUGGCUAUUG...................CCAGG............................AGCACACAC.UA..A
+NZ_CP137621.1:3019894-3020057                 AGGAUGUCAUUUCAuaua.........uuguU.......................................................................UAAGGAGCA-...------ACUGGCUAUUG...................CUGGA............................AGCACACAC.UC..A
+NZ_JBDJMM010000011.1:75361-75524              AGGAUGUCAUUUCAuaua.........uuguU.......................................................................UAAGGAGCA-...------ACUGGCUAUUG...................CUGGA............................AGCACACAC.UC..A
+NZ_JABWQI010000031.1:49509-49650              --------ACCUCCa...............u-......................................................................gCUAGGUGCC-...-UAUCCGGGAGCCUCAUuu..............uagGGUGA............................GGCACACAC.UA..A
+NZ_AVFN01000051.1:16743-16907                 AGGAUGUCAUUGCAuaua.........uugcU.......................................................................UGAGGAGCA-...------AAUGGCUUUAU..................gCCAGG............................AGCACACAC.UA..A
+NZ_CP081200.1:c2990018-2989853                UGGAUGUCAUUGCAuaag.........uugcU.......................................................................UGAGGAGCA-...------AAUGGCAUAUUu.................gCCAGG............................AGCACACAC.UA..A
+NZ_CP076386.1:2799705-2799832                 -UAAUGCUAUUUGA.................-.......................................................................UUACUUUGC-...------AAGAGCUAAA-...................-----............................UGCACACAC.UA..A
+NZ_CP162411.1:439150-439277                   -UAAUGCUAUUUGA.................-.......................................................................UUACUUUGC-...------AAGAGCUAAA-...................-----............................UGCACACAC.UA..A
+NZ_CP040815.1:c4306423-4306296                -UAAUGCUAUUUGA.................-.......................................................................UUACUUUGC-...------AAGAGCUAAA-...................-----............................UGCACACAC.UA..A
+NZ_JBIWEM010000003.1:143753-143916            AGGAUGUCAUUUCAuaua.........uuguU.......................................................................UAAGGAGCG-...------ACUGGCUAUUG...................CUGGA............................AGCACACAC.UC..A
+NZ_KB316290.1:c817433-817270                  AGGAUGUCAUUACAuaua.........uugcA.......................................................................UGAGGAGCA-...------AUGGGCACGCG...................CCCGG............................AGCACACAC.UA..A
+NZ_CAKKMU010000104.1:c1978-1844               CAUGU---------.................-.......................................................................GUGGAACGC-...UCGCACAGGAGCACUUCu.................uGGAGG............................UGCACACAC.UA..A
+JBEZUF010000007.1:28680-28829                 CCUUCGUUACCUUAu..............gg-...................................gug.............................gaug-GGGGGCUAG...CUGCGUAGGAGCGGCUUg.................aC----............................CGUACACAC.UA..A
+NZ_JAOXKY010000009.1:23221-23370              CCUUCGUUACCUUAu..............gg-...................................gug.............................gaug-GGGGGCUAG...CUGCGUAGGAGCGGCUUg.................aC----............................CGUACACAC.UA..A
+NZ_CADEQQ010000011.1:c47707-47552             UGAUGUUGGCCUUAca............gcc-...................................ua................................ucGGAUUGAGCA...AACGGGGCGAGCGUUGCu................guUCGGG............................CGCACACAC.UU..A
+NZ_CADESM010000004.1:450842-450997            UGAUGUUGGCCUUAca............gcc-...................................ua................................ucGGAUUGAGCA...AACGGGGCGAGCGUUGCu................guUCGGG............................CGCACACAC.UU..A
+NZ_CADFEY010000015.1:c40518-40363             UGAUGUUGGCCUUAca............gcc-...................................ua................................ucGGAUUGAGCA...AACGGGGCGAGCGUUGCu................guUCGGG............................CGCACACAC.UU..A
+NZ_CP071825.1:c1184826-1184671                UGAUGUUGGCCUUAca............gcc-...................................ua................................ucGGAUUGAGCA...AACGGGGCGAGCGUUGCu................guUCGGG............................CGCACACAC.UU..A
+NZ_CP109821.1:2511838-2511993                 UGAUGUUGGCCUUAca............gcc-...................................ua................................ucGGAUUGAGCA...AACGGGGCGAGCGUUGCu................guUCGGG............................CGCACACAC.UU..A
+NZ_LPDZ01000234.1:c6043-5888                  UGAUGUUGGCCUCAca............ggc-...................................ua...............................ucg-GAUUGAGCA...AACGGAGCGAGCGUUGCu................guUCGGG............................CGCACACAC.UU..A
+NZ_LPDA01000045.1:136271-136426               UGAUGUUGGCCUCAca............ggc-...................................ua...............................ucg-GAUUGAGCA...AACGGAGCGAGCGUUGCu................guUCGGG............................CGCACACAC.UU..A
+NZ_CP134498.1:c5130570-5130412                UUGGCGCCAAUUGGa...............gG.......................................................................AAGUGUUGAA...UGUGGUAGGAGCGGUAGucau..........uugugAGUGC............................UGCACACAC.UU..A
+NZ_WKDG01000080.1:c1800-1657                  CA------------.................-a................................ua....................................UGCUAAGCGC...CUGUCUGAGAGCCCCUUgcca...........acgcAAUGG............................GGCACACAC.UA..A
+NZ_KI911362.1:31860-32009                     CCUUCGUUACCUUAu..............gg-...................................gug.............................gaug-AGGGGCUAG...CUGCGUGGGAGCGGCUUg.................aC----............................CGUACACAC.UA..A
+NZ_FOHW01000016.1:c28038-27899                UCAACAACAU----.................-......................................................................gCUAGGUGUC-...-UGCUUGGGAGCCCUUUcca.............ucgGUUUG............................GGCACACAC.UA..A
+NZ_PRLP01000009.1:c19469-19300                CCUCUAUCACCUUAug.............gg-...................................uaaauagaggggguagg.ccucuuggaggccuaccc----CA----...CGGCAUCGGAGCGGUG-...................CGAGC............................CGUACACAC.UA..A
+JAHHZP010000002.1:c277147-276977              UUGAUGAAAUCGGAcu............auc-...................................uaguuucg....................agguagau-UCGAUGGAU...UCGGGUACGGGCGUUAUgu..............uggUUAGG............................CGCACACAC.UU..A
+NZ_CAJNAV010000010.1:204592-204762            UUGAUGAAAUCGGAcu............auc-...................................uaguuucg....................agguagau-UCGAUGGAU...UCGGGUACGGGCGUUAUgu..............uggUUAGG............................CGCACACAC.UU..A
+NZ_JOKD01000010.1:c188792-188633              UGUCCGCAAGAUUG.................-.......................................................................GUAUUUCGGG...GCGGAGUUGAGGAGCAAggacaugcc.cagcaugugCUUGC............................UCCACACACcUG..A
+NZ_LBJZ01000179.1:c98347-98205                ACCCGGCUGC----.................-.......................................................................AUAGUUCCA-...-UGCGGGCGGGCGA---...................AAGCU............................CGCACACACuUG..A
+JBGWZM010000004.1:c140173-139905              UGGGCGUAAGCUUA.................-.......................................................................GCAAGAACAAaucGAACAUAUGGGCGUAGC...................-----aacucugaccuau.ggugaagagugauaCGUACACAC.UC..A
+JBKAQB010000053.1:c871-603                    UGGGCGUAAGCUUA.................-.......................................................................GCAAGAACAAaucGAACAUAUGGGCGUAGC...................-----aacucugaccuau.ggugaagagugauaCGUACACAC.UC..A
+NZ_SPQT01000034.1:90270-90412                 ACCGGGCUGC----.................-.......................................................................AUAGUUCCA-...-----UACGGGCGGGCG..................aAAGCU............................CGCACACACuUG..A
+NZ_JBEPQW010000004.1:60305-60447              ACCGGGCUGC----.................-.......................................................................AUAGUUCCA-...-----UACGGGCGGGCG..................aAAGCU............................CGCACACACuUG..A
+NZ_JAXOFN010000042.1:54057-54216              CUUCGGCUGCAUUAugc..........ggagU.......................................................................UCAAGCGCUGg.cUUAUUGGAGAGCGGAUGca...............guCUGUU............................CGCACACAC.UU..A
+NZ_BCNS01000022.1:5641-5792                   GCAAC---------.................-a.................................c....................................CAAGGUGAAG...AUUGAGUUGAGGAUUUAcauuu.........uuaauGUAUC............................UCCACACACuUG..A
+NZ_KB899131.1:c2393-2242                      GCAAC---------.................-a.................................c....................................CAAGGUGAAG...AUUGAGUUGAGGAUUUCcauuu.........uuaauGUAUC............................UCCACACACuUG..A
+NZ_RQIT01000018.1:15330-15472                 GCCCGGCUGC----.................-.......................................................................AUAGUUCCA-...-----UACGGGCGGGCG..................aAAGCU............................CGCACACACuUG..A
+NZ_HG992336.1:102216-102328                   --------------.................-uc...............................gu....................................---------G...GCGUCUAGGAGCGGGCU...................AGUAC............................CGCACACAC.UA..U
+NZ_JACHOI010000001.1:198935-199048            --------------.................-c................................gu....................................---------G...GCGUCUAGGAGCGGGCU...................AGUAC............................CGCACACAC.UA..U
+NZ_JACHNT010000003.1:c413090-412978           --------------.................-uc...............................gu....................................---------G...GCGUCUAGGAGCGGGCU...................AGUAC............................CGCACACAC.UA..U
+NZ_JBEPOR010000003.1:c597681-597539           ACCCGGCUGC----.................-.......................................................................AUAGUUCCA-...-----UACGGGCGGGCG..................aAAGCU............................UGCACACACuUG..A
+NZ_JNFG01000043.1:c37775-37605                UUGAUGAAGUCGAAcu............acc-...................................uaguuucg...................agguaauuu--CGAUGGAU...UUAGGUACGGGCGUUAAgu..............uggUUAGG............................CGCACACAC.UU..A
+RBTK01000071.1:85374-85530                    CGCAAG--------g...............cU.......................................................................GAGGAGGGCU...AGAAAGUUGAGAGGUAUagcucg.......ucaagaCUUGC............................CUCACACACcUG..A
+NZ_LJPS01000063.1:70476-70632                 CGCAAG--------g...............cU.......................................................................GAGGAGGGCU...AGAAAGUUGAGAGGUAUagcucg.......ucaagaCUUGC............................CUCACACACcUG..A
+NZ_CP077721.1:c4961486-4961330                CGCAAG--------g...............cU.......................................................................GAGGAGGGCU...AGAAAGUUGAGAGGUAUagcucg.......ucaagaCUUGC............................CUCACACACcUG..A
+NZ_QPBR01000058.1:28561-28717                 CGCAAG--------g...............cU.......................................................................GAGGAGGGCU...AGAAAGUUGAGAGGUAUagcucg.......ucaagaCUUGC............................CUCACACACcUG..A
+NZ_JBIVNG010000013.1:c130052-129896           CGCAAG--------g...............cU.......................................................................GAGGAGGGCU...AGAAAGUUGAGAGGUAUagcucg.......ucaagaCUUGC............................CUCACACACcUG..A
+NZ_FNTI01000001.1:4174937-4175080             ACUCGGCUGC----.................-.......................................................................AUAGUUCCA-...-----UACGGGCGGGCG..................cAAGCU............................CGCACACACuUG..A
+NZ_CP152412.1:3712319-3712462                 CGUACGUAAUUAGCc...............gG.......................................................................CUGCAUAGU-...-UUCACACGAGCGGGCG...................UAGCC............................CGCACACACuUG..A
+NZ_WVTP01000003.1:c356971-356792              CACCCG--------.................-ucgugaaaggugugcacccccgccaaggaagguau....................................ACAUAUGUC-...ACGAUGCGGAGCGAGCCcu...............uaGGACU............................CGCACACAC.UA..A
+NZ_JBHUIC010000005.1:c407928-407771           AGUCCGCAAGAUUA.................-.......................................................................UUGUUUCGAG...GAGAAGUUGAGGGGUAAcccauaaa...cauuauggCUUGC............................UCCACACACcUG..A
+JBKDEG010000070.1:32456-32605                 UUCAGGAGACCUCAacaccgaaggcuugccgU.......................................................................CG--GGCG--...-AACUGAGGAGCGGCA-...................A----............................CGCACACAC.UAacU
+NZ_JAMLIE010000001.1:854908-855050            UAUCUGAUAUCCGA.................U.......................................................................---CUCGGAA...GCUGGUUGGAGCAUUC-...................G----............................UGCACACACaUC..A
+NZ_JAVKFP010000016.1:c217426-217289           GGCUCAUUAC----................uA.......................................................................CUUCAAAGCC...UUGGUGAGGGGCGGAA-...................A----............................CGCACACACcAC..A
+NZ_JALJZA010000001.1:c1306064-1305922         CCCCGGUUGC----.................-.......................................................................AUAGUUCCA-...-----GACGGGCGGGCG..................aAAGCU............................CGCACACACuUG..A
+NZ_DAMBKV010000003.1:4333-4443                --------------.................-cguaga.......................ugcacg....................................-------C--...GUAGCUCAGGGCGGCU-...................UCGGC............................CGCACACAC.UA..U
+NZ_JAZHSC010000001.1:6497603-6497746          CCAACGUAAUU---aa............ccgG.......................................................................CGGCAUAGC-...-UUCUUACGGGUGGGCU...................UGGCC............................CACACACACuUG..A
+NZ_JAZKLZ010000001.1:c5821683-5821540         CCAACGUAAUU---aa............ccgG.......................................................................CGGCAUAGC-...-UUCUUACGGGUGGGCU...................UGGCC............................CACACACACuUG..A
+NZ_JACVBI010000014.1:c3061-2892               CGCCCGCAAG----g..............cuU.......................................................................GCAAUAGAU-...UCAUCGUUGAGAGGAUUucuc..........gaaagCGAGC............................CUCACACACcUG..A
+NZ_CP026000.1:2868013-2868123                 --------------.................-gcaugg.......................uuucug....................................---------U...GCUCCGGAGGGCGGCAU..................uCGUGC............................CGCACACAC.UA..U
+NZ_JAUEUN010000002.1:c781787-781645           GCCCGACUGC----.................-.......................................................................AUAGG-----...-UUCAUACGGGCGGGCG..................aAAGCU............................CGCACACACuUG..A
+NZ_JAUEWR010000001.1:c781800-781658           GCCCGACUGC----.................-.......................................................................AUAGG-----...-UUCAUACGGGCGGGCG..................aAAGCU............................CGCACACACuUG..A
+NZ_CAXAQB010000001.1:312178-312347            CGCCCGCAAG----g..............cuU.......................................................................GCAAUAGAU-...UCAUCGUUGAGAGGAUUucuc..........gaaagCGAGC............................CUCACACACcUG..A
+NZ_JASERT010000001.1:1327709-1327849          GGAAAUUUACC---.................-.......................................................................CGAUGCGGCC...CAUGUUAAGAGCGA---...................GCAAU............................CGCACACACcUU..A
+NZ_LSOF01000007.1:35384-35549                 CCCGCAAAGU----.................-.......................................................................CUAAAUAAAG..cCCUGAGUUGAGAGGUACcguucg.......caagagCGUGC............................UUCACACACcUG..A
+NZ_BSFN01000015.1:c35373-35208                CCCGCAAAGU----.................-.......................................................................CUAAAUAAAG..cCCUGAGUUGAGAGGUACcguucg.......caagagCGUGC............................UUCACACACcUG..A
+NZ_JACUUA010000080.1:c5317-5155               UGUCCGCC--CGCAagg...........uugG.......................................................................UUUUUUGAGG...AGGUUGAGGAGUAAUUUaccaca......ugguaugGCUGC............................UCCACACACcUG..A
+NZ_JAXBQU010000002.1:c80222-80112             --------------.................-cgcgug......................guuucug....................................---------U...GCUCCGGAGGGCGGCAU..................uCGUGC............................CGCACACAC.UA..U
+NZ_JBDLLS010000001.1:2476233-2476406          UUCAUACCACCGCC.................-gcg............................cccccccuaugaccua...........auggguuuauaga-GGGCUAGCG...GUCGGCAGGAGCAGUGAug...............uuUGUGC............................UGUACACAC.UA..A
+NZ_CP072547.1:c459696-459558                  GUGAUU--------.................-ccc............................aucg....................................CAAAGCCAA-...--GAUUAGGGGCGA---...................GCAAU............................CGCACACAC.CA..A
+NZ_QJUJ01000001.1:c604988-604823              CCCGCAAAGU----.................-.......................................................................CUAAAUAAAG..cCUUGAGUUGAGAGGUACcguucg.......uaagaaCGUGC............................UUCACACACcUG..A
+NZ_JAACZO010000023.1:c358-205                 GGAUCGCAAGUC--.................-...................................u..................................gUUACCUAGGG...UUGAAGUUGAGGGGUUGcaggcua.....ugguuuuGUAAU............................CCCACACACcUG..A
+NZ_VEIU01000003.1:c200151-199974              AGUGGGUAAUUGGUcg.............cuU.......................................................................CAAAACAAA-...--CGCCCUGAGCGGCAGgcgag.........guucgUUUGU............................CGCACACACgCC..A
+PGZF01000003.1:c664453-664324                 AUCUCGCAAG----.................-.......................................................................GAUAUAUGAG..gGUUUAAUCGAGAGUCUAg.................uA----............................CUCACACACcUG..A
+NZ_BFBB01000010.1:c31590-31437                UUGGCGGCAGCUAA................gU.......................................................................AGAAUAGAA-...-UGAAAGAGAGCGAAUAu.................uUUAUU............................UGCACACACaGG..A
+JAGLRU010000384.1:c2712-2569                  UUCCCGCAAG----.................G.......................................................................AAAAUAUGAG...CCUAAUCUGAGAGU---...................UUCGG............................CUCACACACcAG..A
+NZ_AJPX01000367.1:7100-7246                   GAGUUAUUG-----.................-c................................uc....................................CCUUGCAUAG...AUUUGUUCGGGCGGGCG..................aAAGUU............................CGCACACACaUC..A
+JADUPI010000054.1:27364-27538                 GCGUC---------.................-uucgcuua...................uggugucgauuguuga...................gcccgguua----GAACGA...GCGCCCGGGGGCAGCUAgau............cgccCCUGG............................AGCACACAC.UU..A
+NZ_FMYC01000003.1:c143085-142908              AGUGGGUAAUUGGUcg.............cuU.......................................................................CAAAACAAA-...--CGCCCUGAGCGGCAGgcgag.........guucgUUUGU............................CGCACACACgCC..A
+JAHJBX010000007.1:c1031244-1031100            UCGGAGUAAUUGC-.................-ccga..........................uugcu....................................-------GAG...CGUUGUGCGGGCGGACG..................cAAGUU............................CGCACACACuUG..A
+NZ_JACJNI010000028.1:27616-27756              CUAAUU--AG----ca.............uuU.......................................................................CAAGGCCGA-...--GAUUAGGGGCGA---...................GUAAU............................CGCACACACcAC..A
+NZ_JAWOUD010000026.1:c11991-11858             --------------.................-aaacagauuuccgc.......aagaaauccacgag....................................---------G...GCGGUGGCGAGAGG---...................UUCGC............................CUCACACACcUG..A
+NZ_JAHKQH010000042.1:258653-258793            ACAGCGUUCCUGCGa..............agU.......................................................................UCGGAUGAGU...CUUGAUAAGAGGAG---...................GCAAC............................UCCACACACcUG..A
+NZ_JAVDRM010000001.1:c1369487-1369334         CGCUCCAAUUCGGAa..............gcG.......................................................................CUAAGCAGAC...CGGCAUAUGAGCGAUG-...................AAAGU............................CGCACACAC.UC..A
+NZ_JH668202.1:c276684-276561                  CGAAAUCAGA----.................-.......................................................................CCACAAAAUU..uGAAUUGCUGAGGGC---...................GAAAG............................CCCACACACcUG..A
+DATNEE010000651.1:c356-231                    ----UGCGGCCUGG.................A.......................................................................UGACGCGAA-...------CGGAGCAGCG-...................GAAGC............................UGCACACAC.AA..U
+NZ_CP159402.1:c152617-152472                  CGAGUGCGAUCGCAu...............u-......................................................................cGGCGAAGACG...ACGGGACGGGGCGUUUA...................C----............................CGCACACACaUA..-
+NZ_JAWHTP010000004.1:226871-227023            AAAUCGCAAGUUUG.................-.......................................................................UUGCUUGGG-...-UGAAGUUGAGGAGUUGcaaguua.....uaugcuuGUAAG............................UCCACACACcUG..A
+NZ_CP029064.1:c3368787-3368580                UUGCAUUUAUUUGAacuc.........ucuu-...................................uuuauacuuucuauuaaugcauguugguggcgaucaGCAUGUGUUG...AUGUGGAAGAGCGGCUGagccauugaagucacugggGAUGC............................UGCACACACcUU..A
+JAHKAG010000140.1:c5938-5765                  GCGUCUUCACUCCG................g-...................................ugucg..........................auugc-UGAGCCCA-...----CCUAGAGCGAG--...................-----cgcccaccgguggucacauugccgguggAGCACACAC.UU..A
+NZ_CP101662.1:55744-55867                     CGAAAUCAGA----.................-.......................................................................CCACAAAAUU..uGAAUUGCUGAGGGC---...................GAAAG............................CCCACACACcUG..A
+NZ_CP025509.1:c1181808-1181668                CUAAUU--AG----ca.............uuU.......................................................................CAAGGCCGA-...--GAUUAGGGGCGA---...................GUAAU............................CGCACACACcAC..A
+NZ_CP132333.1:2530889-2531047                 GGGUUUAAAUCUGAu..............ccU.......................................................................UGAGUGCUGG...AAACCCAUGAGCACCGAgau............ucguCUCGU............................UGCACACACuUU.gC
+NZ_SUNB01000001.1:c328705-328565              CAAAUUUAGUUUUA.................-.......................................................................CUAAGCUGU-...--UCUAUUGAGGAAGUC...................UAACU............................UCCACACACcUG..A
+NZ_JAPWKB010000019.1:c379218-379064           --CAUGUAGCCGCUcc............aau-...................................cugga..........................agcgc-UAAGCAGAC...CGGCAUAUGAGCGACG-...................AAAGU............................CGCACACAC.UC..A
+NZ_MLCU01000082.1:c101426-101264              AUUCUGCGCUCGCAaggc.........guug-.......................................................................----UUGAGG...UUGUAGUUGAGAAGUACgcucu.........aagagCGUGU............................UUCACACACcUG..A
+PAMZ01000022.1:305503-305630                  AAUAUCAUACUUCAugaagg....uuauuuuU.......................................................................UUACUUAGUUuauAGAAUUAAGAGCAGAG-...................CAAUC............................UGUACACAC.UA.uA
+#=GC SS_cons                                  ______________................._~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~....................................>>-->>>>>,...,,,,,,,,,,<<<____..................._____~~~~~~~~~~~~~~~~~~~~~~~~~~~~>>>,,,,,,.,,..)
+#=GC RF                                       ugcauGUaAcCUcA.................u~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~....................................cuAggaggaG...augcuuAaGAGCgGuau...................auaGc~~~~~~~~~~~~~~~~~~~~~~~~~~~~cGCACACAC.Ua..A
+
+DAQCPM010000011.1:c16965-16828                ..G.GGAUGAGGUUGCUUCAACCUCUU
+NZ_CP156673.1:c865054-864917                  ..G.GGAUGAGGUUGCUUCAACCUCUU
+NZ_CP115035.1:1173358-1173495                 ..G.GGAUGAGGUUGCUUCAAUUUCUU
+DACZSL010000001.1:c28747-28610                ..G.GGAUGAGGUUGCUUCAACCCCUU
+DAOXWW010000001.1:c63144-63007                ..G.GGAUGAGGUUGCUUCAACCCCUU
+JBHGRT010000002.1:c28558-28421                ..G.GGAUGAGGUUGCUUCAACCCCUU
+CP043766.1:c633253-633116                     ..G.GGAUGAGGUUGCUUCAACCCCUU
+NZ_CAIZTO010000012.1:121480-121617            ..G.GGAUGAGGUUGCUUCAACCCCUU
+NZ_FKAX01000002.1:448386-448523               ..G.GGAUGAGGUUGCUUCAACCCCUU
+NZ_FKCV01000002.1:572002-572139               ..G.GGAUGAGGUUGCUUCAACCCCUU
+NZ_UNPX01000014.1:68084-68221                 ..G.GGAUGAGGUUGCUUCAACCCCUU
+JAMYDG010000482.1:5286-5423                   ..G.GGAUGAGGUUGCUUCAACCCCUU
+NZ_JAMGKV010000006.1:c28872-28735             ..G.GGAUGAGGUUGCUUCAACCCCUU
+DAJESM010000039.1:9917-10054                  ..G.GGAUGAGGUUGCUUCAAUUUCUU
+DBAYPE010000032.1:10064-10201                 ..G.GGAUGAGGUUGCUUCAAUUUCUU
+JAVWZZ010000020.1:4115-4252                   ..G.GGAUGAGGUUGCUUCAAUUUCUU
+JAAULA010000009.1:236295-236432               ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_LNHZ01000002.1:86594-86731                 ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_CP181249.1:c3658661-3658524                ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_JAHTVZ010000013.1:c42601-42464             ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_CALECD010000001.1:11772-11909              ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_CP136828.1:1300247-1300384                 ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_JASMVZ010000028.1:51818-51955              ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_JALMON010000009.1:c21403-21266             ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_CP053259.1:1141465-1141602                 ..G.GGAUGAGGUUGCUUCAAUUUCUU
+JAHAGJ010000068.1:4037-4174                   ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_JARLLJ010000004.1:c85047-84910             ..G.GGAUGAGGUUGCUUCAAUUUCUU
+NZ_JABJXJ010000006.1:331420-331557            ..G.GGAUGAGGUUGCUUCAAUUUCUU
+ABOMLX010000015.1:c63184-63046                ..G.GGAUGAGGUUGCUUCAACCUCUU
+DARSOJ010000012.1:55226-55364                 ..G.GGAUGAGGUUGCUUCAACCUCUU
+DAXWQX010000006.1:57285-57423                 ..G.GGAUGAGGUUGCUUCAACCUCUU
+DBDJCB010000008.1:c201629-201491              ..G.GGAUGAGGUUGCUUCAACCUCUU
+NZ_PXKH01000007.1:c204328-204190              ..G.GGAUGAGGUUGCUUCAACCUCUU
+JBGRNG010000005.1:287636-287800               ..G.AGAUGAGGCUACCUUUCACCCUC
+NZ_JAWUDN010000002.1:c392944-392815           ..G.GGAUGAGGCUGCUCCACCAUUUU
+ABXKYY010000005.1:c277559-277430              ..G.GGAUGAGGCUGCUCCACCAUUUU
+DANMWD010000042.1:c7343-7214                  ..G.GGAUGAGGCUGCUCCACCAUUUU
+DANMWK010000035.1:c28570-28441                ..G.GGAUGAGGCUGCUCCACCAUUUU
+NZ_CQBH01000006.1:c253941-253812              ..G.GGAUGAGGCUGCUCCACCAUUUU
+NZ_CPZL01000003.1:c72112-71983                ..G.GGAUGAGGCUGCUCCACCAUUUU
+NZ_CP173224.1:c3782844-3782715                ..G.GGAUGAGGCUGCUCCACCAUUUU
+NZ_CP133783.1:c337570-337406                  ..G.GGGUGAGGCUACUUUUCACCUCC
+NZ_JASJWP010000015.1:3380-3544                ..G.GGGUGAGGCUACUUUUCACCUCC
+NZ_AP021902.1:4137488-4137653                 ..G.GGAUGAGGCUACUUUUCACUACC
+NZ_FYDR01000001.1:931243-931391               ..G.-GUUGAGACUACCUUUCUCCCUU
+NZ_SMYK01000007.1:c12979-12831                ..G.-GUUGAGACUACCUUUCUCCCUU
+DAFSJJ010000013.1:31301-31465                 ..G.AGAUGAGGCUACCUUUCACUCAG
+DATZTT010000030.1:41737-41901                 ..G.AGAUGAGGCUACCUUUCACUCAG
+NZ_CP072783.1:6091154-6091318                 ..G.AGAUGAGGCUACCUUUCACUCAG
+NZ_CP029693.1:c6232239-6232074                ..G.AGGUGAGGCUACUUUUCACACCC
+NZ_LDRY01000025.1:c26840-26702                ..G.GGAUGAGGUUGCUUCACCUUUUA
+NZ_ML137047.1:c3225753-3225615                ..G.GGAUGAGGUUGCUUCACCUUUUA
+NZ_CP127228.1:5480550-5480711                 ..G.GGAUGAGGCUAUCUCUCACUUUU
+NZ_JAXDEU010000005.1:c364292-364127           ..G.GGGUGAGGCUACUUUUCACAACA
+NZ_PHHE01000001.1:c5083897-5083747            ..G.-GUUGAGACUGCCUUUCUCCCCA
+NZ_UTIB01000079.1:c410492-410342              ..G.-GUUGAGACUGCCUUUCUCCCCA
+NZ_JABWQK020000001.1:1301137-1301287          ..G.-GUUGAGACUGCCUUUCUCCCCA
+NZ_JAQJVM010000002.1:901163-901313            ..G.-GUUGAGACUGCCUUUCUCCCCA
+NZ_KZ268676.1:45892-46030                     ..G.GGAUGAGGUUGCUUCACCUUUUA
+NZ_JACGXJ010000001.1:46038-46176              ..G.GGAUGAGGUUGCUUCACCUUUUA
+NZ_JAXCWZ010000006.1:4468-4606                ..G.GGAUGAGGUUGCUUCACCUUUUA
+NZ_CP010415.1:c553175-553014                  ..G.GGGUGAGGCUACCUUUCACAUAU
+NZ_CAWOFI010000173.1:9880-10012               ..G.GGAUGAGGUUGCUUCAUCUGAAU
+NZ_CAWOQH010000188.1:76211-76343              ..G.GGAUGAGGUUGCUUCAUCUGAAU
+NZ_CAKAKK010000002.1:26255-26422              ..G.GGGUGAGGCCACGACCCACCCUU
+NZ_JACAQE010000002.1:573997-574160            .uG.AGGUGAGACCAUUUUCCACCUAA
+NZ_JAVDWT010000004.1:c467569-467420           ..G.-GUUGAGACUACCUUUCUCCUCA
+NZ_CAXAQE010000005.1:c23127-22985             ..G.GGGUGAGGCCAUCUUUCACUACU
+NZ_KL647095.1:c227721-227555                  ..G.AGAUGAGGCUACCUUUCACACAC
+NZ_JADUCQ010000001.1:c163479-163313           ..G.AGAUGAGGCUACCUUUCACACAC
+NZ_AYTD01000001.1:c66530-66389                ..G.GGGUGAGGCCAUCUUUCACUACU
+NZ_JAOTNX010000010.1:c90132-89991             ..G.GGGUGAGGCCAUCUUUCACUACU
+DAZTFF010000056.1:c12446-12284                .uG.AGGUGAGGCCAUCUUCCACCCAC
+STVZ01000036.1:30400-30562                    .uG.AGGUGAGGCCAUCUUCCACCCAC
+NZ_CP050324.1:754891-755053                   .uG.AGGUGAGGCCAUCUUCCACCCAC
+NZ_AWZE01001985.1:c3128-2966                  .uG.AGGUGAGGCCAUCUUCCACCCAC
+NZ_CP137621.1:3019894-3020057                 .uG.AGGUGAGACCAUUUUCCGCCUUU
+NZ_JBDJMM010000011.1:75361-75524              .uG.AGGUGAGACCAUUUUCCGCCUUU
+NZ_JABWQI010000031.1:49509-49650              ..G.GGGUGAGGCCAUCUUUCACUACU
+NZ_AVFN01000051.1:16743-16907                 .uG.AGGUGAGGCCAUUUCCUACCUAA
+NZ_CP081200.1:c2990018-2989853                .uG.AGGUGAGGCCAUCUCCUACCUUU
+NZ_CP076386.1:2799705-2799832                 ..G.GGGUGAGGCUGUCCCACCUGUUU
+NZ_CP162411.1:439150-439277                   ..G.GGGUGAGGCUGUCCCACCUGUUU
+NZ_CP040815.1:c4306423-4306296                ..G.GGGUGAGGCUGUCCCACCUGUUU
+NZ_JBIWEM010000003.1:143753-143916            .uG.AGGUGAGACCAUUUUCCGCCUUU
+NZ_KB316290.1:c817433-817270                  .cG.AGGUGAGGCCAUUUCCACCCGAC
+NZ_CAKKMU010000104.1:c1978-1844               ..G.GGGUGAGGCCGUCCCUCACCUUC
+JBEZUF010000007.1:28680-28829                 ..G.-GGUGAGAC-GCCUUUCACCCCU
+NZ_JAOXKY010000009.1:23221-23370              ..G.-GGUGAGAC-GCCUUUCACCCCU
+NZ_CADEQQ010000011.1:c47707-47552             ..G.AGAUGAGGCUAUUCCCACCCAUC
+NZ_CADESM010000004.1:450842-450997            ..G.AGAUGAGGCUAUUCCCACCCAUC
+NZ_CADFEY010000015.1:c40518-40363             ..G.AGAUGAGGCUAUUCCCACCCAUC
+NZ_CP071825.1:c1184826-1184671                ..G.AGAUGAGGCUAUUCCCACCCAUC
+NZ_CP109821.1:2511838-2511993                 ..G.AGAUGAGGCUAUUCCCACCCAUC
+NZ_LPDZ01000234.1:c6043-5888                  ..G.AGAUGAGGCUAUUCCCACCCAUC
+NZ_LPDA01000045.1:136271-136426               ..G.AGAUGAGGCUAUUCCCACCCAUC
+NZ_CP134498.1:c5130570-5130412                ..G.GAGUGAGGCCACUUUCUUCUAAU
+NZ_WKDG01000080.1:c1800-1657                  ..G.GGGUGAGGCCAUCUCUCACUAUU
+NZ_KI911362.1:31860-32009                     ..G.-GGUGAGAC-GCCUUUCACCUCC
+NZ_FOHW01000016.1:c28038-27899                ..G.AGAUGAGGCCAUCUCUCCUCUUU
+NZ_PRLP01000009.1:c19469-19300                ..G.-GGUGAGACUACCUUUCACCCUU
+JAHHZP010000002.1:c277147-276977              ..G.GGAUGAGGGCAACUCCACCUCUU
+NZ_CAJNAV010000010.1:204592-204762            ..G.GGAUGAGGGCAACUCCACCUCUU
+NZ_JOKD01000010.1:c188792-188633              .uG.C--UGAGGCUAUCUGUCACACUU
+NZ_LBJZ01000179.1:c98347-98205                .uG.-CUUGAGGGCGGCUCCCUGCUCC
+JBGWZM010000004.1:c140173-139905              ..G.AGAUGAGGCUAUCCCUCACUUAU
+JBKAQB010000053.1:c871-603                    ..G.AGAUGAGGCUAUCCCUCACUUAU
+NZ_SPQT01000034.1:90270-90412                 .uG.-CUUGAGGGCGACUCCCUGCUUG
+NZ_JBEPQW010000004.1:60305-60447              .uG.-CUUGAGGGCGACUCCCUGCUUG
+NZ_JAXOFN010000042.1:54057-54216              ..G.AG-UGAGGCGGUCUCUCAACUAU
+NZ_BCNS01000022.1:5641-5792                   .uG.C--UGAGGUCAUCUGCCACCCUA
+NZ_KB899131.1:c2393-2242                      .uG.C--UGAGGUCAUCUGCCACCCUA
+NZ_RQIT01000018.1:15330-15472                 .uG.-CUUGAGGGCGACUCCUCGCUCC
+NZ_HG992336.1:102216-102328                   .uG.GGAUGAGGCUGCUCCCCUCCUUU
+NZ_JACHOI010000001.1:198935-199048            .uG.GGAUGAGGCUGCUCCCCUCCUUU
+NZ_JACHNT010000003.1:c413090-412978           .uG.GGAUGAGGCUGCUCCCCUCCUUU
+NZ_JBEPOR010000003.1:c597681-597539           .uG.-CUUGAGGGCGGCUCCCUGCUCC
+NZ_JNFG01000043.1:c37775-37605                ..G.GGAUGAGGGCAACUCCACCCCUC
+RBTK01000071.1:85374-85530                    .uG.C--UGAAGCCCCUAAUCGACCCC
+NZ_LJPS01000063.1:70476-70632                 .uG.C--UGAAGCCCCUAAUCGACCCC
+NZ_CP077721.1:c4961486-4961330                .uG.C--UGAAGCCCCUAAUCGACCCC
+NZ_QPBR01000058.1:28561-28717                 .uG.C--UGAAGCCCCUAAUCGACCCC
+NZ_JBIVNG010000013.1:c130052-129896           .uG.C--UGAAGCCCCUAAUCGACUCC
+NZ_FNTI01000001.1:4174937-4175080             .uG.-CUUGAGGGCGGCUCCUUCACCU
+NZ_CP152412.1:3712319-3712462                 .uG.-CGUGAGAGUGGCUCCUCUGCUU
+NZ_WVTP01000003.1:c356971-356792              ..GuGUAUGAGGCCAUCUUUCUUUCUC
+NZ_JBHUIC010000005.1:c407928-407771           .uG.C--UGAGGCUGUCUGUCAUACCU
+JBKDEG010000070.1:32456-32605                 .uG.CGGUGAGGGCAGCUCUUACUUUU
+NZ_JAMLIE010000001.1:854908-855050            .uG.CG-UGAGGGCAACUCUCACCUGC
+NZ_JAVKFP010000016.1:c217426-217289           ..G.-GGUGAGGGUAGCUUCCGCCUCU
+NZ_JALJZA010000001.1:c1306064-1305922         .uG.-CUUGAGGGCAGCUUCCCGCUUU
+NZ_DAMBKV010000003.1:4333-4443                .uG.AGAUGAGGCCACCCCUUCGUUUC
+NZ_JAZHSC010000001.1:6497603-6497746          .uG.-CGUGAGAAUGGCUCUCUCACCU
+NZ_JAZKLZ010000001.1:c5821683-5821540         .uG.-CGUGAGAAUGGCUCUCUCACCU
+NZ_JACVBI010000014.1:c3061-2892               .uG.C--UGAGGCCUCUUUACAACACC
+NZ_CP026000.1:2868013-2868123                 .uG.AGAUGAGGCCACCCCACCGUCUU
+NZ_JAUEUN010000002.1:c781787-781645           .uG.-CUUGAGGGCGGCUCCCUACCGU
+NZ_JAUEWR010000001.1:c781800-781658           .uG.-CUUGAGGGCGGCUCCCUACCGU
+NZ_CAXAQB010000001.1:312178-312347            .uG.C--UGAGGCCUCUUUACAACACC
+NZ_JASERT010000001.1:1327709-1327849          ..G.UCGUGAGGGCAGUUUCCACUAUC
+NZ_LSOF01000007.1:35384-35549                 .uG.C--UGAGGCCUCUAAUCAACAUU
+NZ_BSFN01000015.1:c35373-35208                .uG.C--UGAGGCCUCUAAUCAACAUU
+NZ_JACUUA010000080.1:c5317-5155               .uG.C--UGAGGCUAUCUGUCACACUC
+NZ_JAXBQU010000002.1:c80222-80112             .uG.AGAUGAGGCCACCCCGCCGUCUU
+NZ_JBDLLS010000001.1:2476233-2476406          ..G.-GGUGAGGC-GCCUUUCUUCCUC
+NZ_CP072547.1:c459696-459558                  .aG.UCGUGAGGGUAGUUCCCACCUUC
+NZ_QJUJ01000001.1:c604988-604823              .uG.C--UGAGACCUCUAAUCUACAUU
+NZ_JAACZO010000023.1:c358-205                 .uG.C--UGAGGCUGUCUGUCACGCCU
+NZ_VEIU01000003.1:c200151-199974              .cG.-CGUGAGAUGGCUUCCGCUUUUU
+PGZF01000003.1:c664453-664324                 .uG.U--UGAGACUCUGCUACACCUUA
+NZ_BFBB01000010.1:c31590-31437                ucG.GGAUGAGGGCCAUUUGUCAUCAC
+JAGLRU010000384.1:c2712-2569                  ..U.GU-UGAGGCGUUCUAAUACACUU
+NZ_AJPX01000367.1:7100-7246                   ..U.GCUUGAGGCGACUCUCUCACCGU
+JADUPI010000054.1:27364-27538                 ..GcAGGUGAGGCCGCCUCGCACUUCA
+NZ_FMYC01000003.1:c143085-142908              .cG.-CGUGAGAUGGCUUCCGCUUUUU
+JAHJBX010000007.1:c1031244-1031100            .uG.-CGUGAGAACGGCCCCUCACAUU
+NZ_JACJNI010000028.1:27616-27756              ..G.UCGUGAGGGUAGCUUCCGCCUCU
+NZ_JAWOUD010000026.1:c11991-11858             .uG.U--UGAGGCUCUACUACACUAUC
+NZ_JAHKQH010000042.1:258653-258793            .cG.U--UGAGACCUUUUGUUACACCA
+NZ_JAVDRM010000001.1:c1369487-1369334         gcG.GGUUC-GGCUACCUUUCACCUCA
+NZ_JH668202.1:c276684-276561                  .uG.C--UGAGCCCUCUACCGACCAUU
+DATNEE010000651.1:c356-231                    .uG.GUGUGAGGUCGCCCCGCCACCUU
+NZ_CP159402.1:c152617-152472                  ..G.GCGUGAGCGCGGUCUCCAAACUU
+NZ_JAWHTP010000004.1:226871-227023            .uG.C--UGAGGCUGUCUGCCACACUA
+NZ_CP029064.1:c3368787-3368580                ..G.CCUUGAGUUCCUUGUUUUCUUUU
+JAHKAG010000140.1:c5938-5765                  ..GcAGGUGAGGUCGCCUCGCGCUUUU
+NZ_CP101662.1:55744-55867                     .uG.C--UGAGCCCUCUACCGACCAUU
+NZ_CP025509.1:c1181808-1181668                ..G.UCGUGAGGGUAGCUUCCGCUGCU
+NZ_CP132333.1:2530889-2531047                 .gG.AGAU--UGUCACCUUCCACCUGU
+NZ_SUNB01000001.1:c328705-328565              .uG.C--UGAGGUUGACCGCUACCUGA
+NZ_JAPWKB010000019.1:c379218-379064           gcG.GGCUU-GGCUGCCCUUCACCUAC
+NZ_MLCU01000082.1:c101426-101264              .uG.C--UGAGGCUCCCGAUUGGAAAC
+PAMZ01000022.1:305503-305630                  ..G.-GGUGAGACCUUUACUCUUUCCU
+#=GC SS_cons                                  ..).))----)))))):::::::::::
+#=GC RF                                       ..G.gGaUGAGGCcaccUcuCaCccUU
+//
