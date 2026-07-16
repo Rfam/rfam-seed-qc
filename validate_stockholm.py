@@ -189,10 +189,43 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
         ]
         if verbose:
             print(f"  Scanning against known Rfam families ({cm_db}), using GA thresholds...")
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
+
+        # cmscan emits exactly one 'Query:' line per input sequence, in order, so
+        # counting them as stdout streams reports real progress through the scan.
+        # stderr goes to a file rather than a second pipe, which would risk
+        # deadlocking against the stdout read if it filled.
+        total_queries = len(sequence_entries)
+        milestones = [20, 40, 60, 80, 100]
+        stderr_path = tmpdir + '/cmscan.err'
+
+        with open(stderr_path, 'w') as errf:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=errf, text=True)
+            try:
+                scanned = 0
+                for line in process.stdout:
+                    if not line.startswith('Query:'):
+                        continue
+                    scanned += 1
+                    if not verbose or not total_queries:
+                        continue
+                    percent = scanned / total_queries * 100
+                    while milestones and percent >= milestones[0]:
+                        reached = milestones.pop(0)
+                        print(f"    {reached}% scanned ({scanned}/{total_queries} sequences)")
+                returncode = process.wait()
+            finally:
+                # Whatever ends the read loop early — Ctrl-C, a broken stdout pipe,
+                # a parse error — cmscan must not outlive us: it would keep a core
+                # busy and write into the tmpdir the caller is about to delete.
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                process.stdout.close()
+
+        if returncode != 0:
             if verbose:
-                print(f"  Warning: cmscan failed: {result.stderr.strip()}")
+                with open(stderr_path) as f:
+                    print(f"  Warning: cmscan failed: {f.read().strip()}")
             return []
 
         # Parse tblout — keep best hit per sequence (first occurrence)

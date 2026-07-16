@@ -5,6 +5,7 @@ These errors can be automatically corrected.
 """
 
 import os
+import sys
 import time
 import re
 import warnings
@@ -119,6 +120,9 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
     if verbose:
         print(f"    Running BLAST search ({len(dna_seq)} bp)...")
 
+    result_handle = None
+    blast_records = None
+
     try:
         # Use blastn against nt database, limit results for speed
         result_handle = NCBIWWW.qblast(
@@ -132,9 +136,10 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
 
         for alignment in blast_record.alignments:
             for hsp in alignment.hsps:
-                # Calculate identity and coverage
+                # Calculate identity and coverage. BLAST query coordinates are
+                # 1-based and inclusive, so the span covers end - start + 1 bases.
                 identity = (hsp.identities / hsp.align_length) * 100
-                coverage = (hsp.query_end - hsp.query_start) / len(dna_seq) * 100
+                coverage = (hsp.query_end - hsp.query_start + 1) / len(dna_seq) * 100
 
                 if identity >= min_identity and coverage >= min_coverage and hsp.expect <= max_evalue:
                     # Extract accession from hit - try multiple formats
@@ -173,6 +178,24 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             print(f"    BLAST search failed: {e}")
         return None, False
 
+    finally:
+        # NCBIXML.parse is a generator and we return as soon as the first record
+        # gives us a hit, leaving it suspended. Its eventual garbage collection
+        # re-finalizes the XML parser, and when NCBI truncates a response that
+        # surfaces as an "Exception ignored ... ExpatError" traceback that no
+        # caller can catch. Close it here instead, where the torn tail is ours
+        # to discard: the record we needed is already parsed.
+        if blast_records is not None:
+            try:
+                blast_records.close()
+            except Exception:
+                pass
+        if result_handle is not None:
+            try:
+                result_handle.close()
+            except Exception:
+                pass
+
 
 def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
     """
@@ -194,20 +217,36 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
     to_remove = set()
 
     align = AlignIO.read(filepath, 'stockholm')
+
+    # Records that already carry coordinates need no lookup, so they are settled
+    # up front and left out of the progress total.
+    pending = []
     for record in align:
-        # Skip if already has coordinates
         _, coords = parse_sequence_identifier(record.id)
         if coords is not None:
             mapping[record.id] = record.id
-            continue
+        else:
+            pending.append(record)
+
+    total = len(pending)
+    show_bar = total > 0 and not verbose and sys.stderr.isatty()
+
+    for position, record in enumerate(pending, start=1):
+        if verbose:
+            print(f"  [{position}/{total} {position / total * 100:.1f}%] {record.id}")
+        elif show_bar:
+            sys.stderr.write('\r  Resolving coordinates ' + _render_progress(position - 1, total))
+            sys.stderr.flush()
 
         # Remove gaps for sequence matching
         ungapped = str(record.seq).replace('.', '').replace('-', '').upper()
 
-        fasta_file = get_fasta_file(record.id)
         found = False
 
         try:
+            # Inside the try: a download that exhausts its retries raises, and
+            # that must cost only this sequence, not the whole run.
+            fasta_file = get_fasta_file(record.id)
             fasta = SeqIO.read(fasta_file, "fasta")
 
             # Get version if not in record id
@@ -258,7 +297,19 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
             print(f"  {record.id} will be REMOVED (no accurate match found)")
         to_remove.add(record.id)
 
+    if show_bar:
+        sys.stderr.write('\r  Resolving coordinates ' + _render_progress(total, total) + '\n')
+        sys.stderr.flush()
+
     return mapping, to_remove
+
+
+def _render_progress(done, total, width=30):
+    """Render a text progress bar, e.g. '[####------] 12/40 (30.0%)'."""
+    fraction = done / total if total else 1.0
+    filled = int(round(fraction * width))
+    bar = '#' * filled + '-' * (width - filled)
+    return f'[{bar}] {done}/{total} ({fraction * 100:.1f}%)'
 
 
 def check_overlap(start1, end1, start2, end2):
@@ -350,7 +401,19 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
     mismatched = set()
     blast_fixed = {}
 
-    for seq_name, seq_data in sequence_entries:
+    # Counted over every entry so the total matches the "Validating N sequence(s)
+    # against NCBI" line the caller prints; entries skipped below for lack of
+    # usable coordinates are rare and resolve instantly.
+    total = len(sequence_entries)
+    show_bar = total > 0 and not verbose and sys.stderr.isatty()
+
+    for position, (seq_name, seq_data) in enumerate(sequence_entries, start=1):
+        if verbose:
+            print(f"  [{position}/{total} {position / total * 100:.1f}%] {seq_name}")
+        elif show_bar:
+            sys.stderr.write('\r  Validating against NCBI ' + _render_progress(position - 1, total))
+            sys.stderr.flush()
+
         accession, coords = parse_sequence_identifier(seq_name)
 
         if not coords:
@@ -451,6 +514,10 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
             mismatched.add(seq_name)
         except Exception:
             not_found.add(seq_name)
+
+    if show_bar:
+        sys.stderr.write('\r  Validating against NCBI ' + _render_progress(total, total) + '\n')
+        sys.stderr.flush()
 
     invalid = not_found | mismatched
     return invalid, not_found, mismatched, blast_fixed
