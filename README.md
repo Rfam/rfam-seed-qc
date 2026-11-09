@@ -94,7 +94,7 @@ The script can detect and remove duplicate sequences using the `--fix` flag. Dup
 When sequences are missing coordinates (e.g., `NZ_CP038662.1` instead of `NZ_CP038662.1/4723652-4723704`), the `--fix` flag will:
 
 1. **NCBI Direct Lookup**: Download the FASTA sequence from NCBI and find coordinates by matching the alignment sequence
-2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10)
+2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries
 3. **Removal**: Sequences that cannot be resolved via either method are removed from the output
 
 **Requirements**: BioPython (`pip install biopython`)
@@ -181,8 +181,13 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_MIN_COVERAGE` | 90 | Minimum coverage % for BLAST hits |
 | `BLAST_MAX_EVALUE` | 1e-10 | Maximum e-value for BLAST hits |
 | `BLAST_HITLIST_SIZE` | 5 | Number of BLAST hits to retrieve |
+| `BLAST_WORD_SIZE` | 11 | blastn word size |
+| `BLAST_MATCH_REWARD` / `BLAST_MISMATCH_PENALTY` | 2 / -3 | blastn match/mismatch scores |
+| `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
+| `NCBI_TOOL` | `rfam-seed-qc` | Tool name sent to NCBI (BLAST and E-utilities) |
+| `NCBI_EMAIL` | `None` | Your email, sent to NCBI so they can contact you before blocking heavy use (recommended) |
 | `RNACENTRAL_REQUEST_DELAY` | 2.0 | Delay between RNAcentral requests in seconds |
 | `RNACENTRAL_MAX_RETRIES` | 3 | Retries on HTTP 429/5xx/network errors |
 | `RNACENTRAL_TIMEOUT` | 30 | RNAcentral request timeout in seconds |

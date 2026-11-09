@@ -20,6 +20,16 @@ BLAST_MAX_EVALUE = 1e-10
 # Number of BLAST hits to retrieve (top N hits)
 BLAST_HITLIST_SIZE = 5
 
+# BLAST task: standard blastn (NOT megablast), with its scoring parameters
+# stated explicitly so results do not change silently if NCBI changes its
+# server defaults (the NCBI website and BLAST+ default to megablast).
+# blastn is slower than megablast but more sensitive: it also finds
+# divergent hits and short queries that megablast's 28-nt seed can miss.
+BLAST_WORD_SIZE = 11
+BLAST_MATCH_REWARD = 2
+BLAST_MISMATCH_PENALTY = -3
+BLAST_GAP_COSTS = "5 2"   # gap open, gap extend (affine)
+
 
 # =============================================================================
 # Rfam CM Filtering Parameters (cmscan)
@@ -36,6 +46,12 @@ CMSCAN_MAX_EVALUE = 1e-3
 
 # Delay between NCBI requests in seconds (to avoid rate limiting)
 NCBI_REQUEST_DELAY = 0.5
+
+# Identify this tool to NCBI (BLAST and E-utilities), as NCBI's usage
+# guidelines request, so NCBI can contact the user before blocking an IP.
+# Set NCBI_EMAIL to your own address; leave as None to send no email.
+NCBI_TOOL = 'rfam-seed-qc'
+NCBI_EMAIL = None
 
 
 # =============================================================================

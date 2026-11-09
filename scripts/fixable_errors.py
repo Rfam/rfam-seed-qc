@@ -104,7 +104,12 @@ def get_fasta_file(identifier, max_retries=3):
     if os.path.exists(fasta_file):
         os.remove(fasta_file)  # stale error reply or empty file from an earlier run
 
-    url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id={identifier}&rettype=fasta&retmode=text"
+    from urllib.parse import urlencode
+    params = {'db': 'nuccore', 'id': identifier, 'rettype': 'fasta', 'retmode': 'text',
+              'tool': config.NCBI_TOOL}
+    if config.NCBI_EMAIL:
+        params['email'] = config.NCBI_EMAIL
+    url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?" + urlencode(params)
     for attempt in range(1, max_retries + 1):
         time.sleep(config.NCBI_REQUEST_DELAY)
         fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
@@ -173,9 +178,19 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
     blast_records = None
 
     try:
-        # Use blastn against nt database, limit results for speed
+        # Identify ourselves to NCBI (sent with every qblast request)
+        NCBIWWW.tool = config.NCBI_TOOL
+        NCBIWWW.email = config.NCBI_EMAIL
+
+        # Standard blastn (not megablast) against nt, with the task's scoring
+        # parameters set explicitly rather than relying on NCBI's defaults.
+        # MEGABLAST is deliberately not sent. Limit results for speed.
         result_handle = NCBIWWW.qblast(
             "blastn", "nt", dna_seq,
+            word_size=config.BLAST_WORD_SIZE,
+            nucl_reward=config.BLAST_MATCH_REWARD,
+            nucl_penalty=config.BLAST_MISMATCH_PENALTY,
+            gapcosts=config.BLAST_GAP_COSTS,
             hitlist_size=config.BLAST_HITLIST_SIZE,
             expect=max_evalue,
             format_type="XML"
