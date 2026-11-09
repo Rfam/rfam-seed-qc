@@ -16,6 +16,7 @@ warnings.filterwarnings("ignore", message=".*FASTA.*")
 
 # Import configuration
 from scripts import config
+from scripts import rnacentral
 
 
 def parse_sequence_identifier(seq_name):
@@ -54,28 +55,110 @@ def find_missing_coordinates(sequence_entries):
     return missing
 
 
+class AccessionNotFoundError(RuntimeError):
+    """NCBI efetch reported that the identifier does not exist."""
+
+
+def _read_head(path, size=256):
+    """Return the first bytes of a file as text, ignoring NULs (NCBI error
+    replies can be UTF-16 encoded)."""
+    with open(path, 'rb') as f:
+        head = f.read(size)
+        if head.startswith((b'\xff\xfe', b'\xfe\xff')):
+            return head.decode('utf-16', errors='replace')
+        return head.replace(b'\x00', b'').decode('utf-8', errors='replace')
+
+
+def _is_fasta_file(path):
+    """True if the file exists and looks like FASTA (first non-blank char is '>')."""
+    try:
+        return os.path.getsize(path) > 0 and _read_head(path).lstrip().startswith('>')
+    except OSError:
+        return False
+
+
 def get_fasta_file(identifier, max_retries=3):
     """
     Download fasta file from NCBI if not already downloaded.
     Retries on transient network failures.
+
+    NCBI efetch answers an unknown identifier with HTTP 200 and an
+    'Error: ...' body, so the download is checked to be real FASTA before it
+    is cached. Error replies are never cached, and invalid files left in the
+    cache by older versions are discarded and re-downloaded.
+
+    Downloads use Python's urllib (no external curl/wget needed). A network
+    failure is reported as RuntimeError, never as a missing accession.
+
+    Raises:
+        AccessionNotFoundError: NCBI says the identifier does not exist.
+        RuntimeError: download kept failing.
     """
+    import http.client
+    import shutil
+    import tempfile
+    import urllib.error
+    import urllib.request
+
     script_location = os.path.dirname(os.path.abspath(__file__))
     fasta_folder = os.path.join(script_location, 'fasta')
     os.makedirs(fasta_folder, exist_ok=True)
     fasta_file = os.path.join(fasta_folder, identifier + '.fasta')
-    if not os.path.exists(fasta_file) or os.stat(fasta_file).st_size == 0:
-        import subprocess
-        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id={identifier}&rettype=fasta&retmode=text"
-        for attempt in range(1, max_retries + 1):
-            time.sleep(config.NCBI_REQUEST_DELAY)
-            result = subprocess.run(['curl', '-s', '-o', fasta_file, url])
-            if result.returncode == 0 and os.path.exists(fasta_file) and os.stat(fasta_file).st_size > 0:
-                break
-            if attempt < max_retries:
-                time.sleep(2 * attempt)  # backoff before retry
-            else:
-                raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts")
-    return fasta_file
+
+    if _is_fasta_file(fasta_file):
+        return fasta_file
+    if os.path.exists(fasta_file):
+        os.remove(fasta_file)  # stale error reply or empty file from an earlier run
+
+    from urllib.parse import urlencode
+    params = {'db': 'nuccore', 'id': identifier, 'rettype': 'fasta', 'retmode': 'text',
+              'tool': config.NCBI_TOOL}
+    if config.NCBI_EMAIL:
+        params['email'] = config.NCBI_EMAIL
+    url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?" + urlencode(params)
+    request = urllib.request.Request(url, headers={'User-Agent': config.NCBI_TOOL})
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        time.sleep(config.NCBI_REQUEST_DELAY)
+        fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
+        os.close(fd)
+        try:
+            ok = False
+            try:
+                with urllib.request.urlopen(request, timeout=config.NCBI_TIMEOUT) as resp, \
+                        open(tmp_path, 'wb') as out:
+                    shutil.copyfileobj(resp, out)
+                ok = True
+            except urllib.error.HTTPError as e:
+                # Keep the body: NCBI explains errors in it
+                last_error = e
+                try:
+                    with open(tmp_path, 'wb') as out:
+                        out.write(e.read())
+                except (http.client.HTTPException, OSError):
+                    pass
+            except (http.client.HTTPException, OSError, ValueError) as e:
+                # OSError: URLError, timeouts, connection resets.
+                # HTTPException: IncompleteRead, RemoteDisconnected.
+                last_error = e
+
+            if ok and _is_fasta_file(tmp_path):
+                os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
+                return fasta_file
+            if os.path.getsize(tmp_path) > 0:
+                head = _read_head(tmp_path).strip()
+                if head.startswith('Error'):
+                    # Definitive answer from NCBI; retrying will not help
+                    raise AccessionNotFoundError(f"NCBI has no record for {identifier}")
+            if ok:
+                last_error = 'unexpected reply (not FASTA)'
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        if attempt < max_retries:
+            time.sleep(2 * attempt)  # backoff before retry
+    raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts"
+                       f" ({last_error})")
 
 
 def get_accession_version(fasta_file):
@@ -124,9 +207,19 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
     blast_records = None
 
     try:
-        # Use blastn against nt database, limit results for speed
+        # Identify ourselves to NCBI (sent with every qblast request)
+        NCBIWWW.tool = config.NCBI_TOOL
+        NCBIWWW.email = config.NCBI_EMAIL
+
+        # Standard blastn (not megablast) against nt, with the task's scoring
+        # parameters set explicitly rather than relying on NCBI's defaults.
+        # MEGABLAST is deliberately not sent. Limit results for speed.
         result_handle = NCBIWWW.qblast(
             "blastn", "nt", dna_seq,
+            word_size=config.BLAST_WORD_SIZE,
+            nucl_reward=config.BLAST_MATCH_REWARD,
+            nucl_penalty=config.BLAST_MISMATCH_PENALTY,
+            gapcosts=config.BLAST_GAP_COSTS,
             hitlist_size=config.BLAST_HITLIST_SIZE,
             expect=max_evalue,
             format_type="XML"
@@ -243,7 +336,27 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
 
         found = False
 
+        # RNAcentral ids (URS..., URS..._taxid): locate within the RNAcentral
+        # sequence instead of NCBI. On failure fall through to BLAST.
+        if rnacentral.is_rnacentral_id(record.id):
+            try:
+                new_accession = rnacentral.find_coordinates(record.id, ungapped)
+            except rnacentral.RNAcentralError as e:
+                new_accession = None
+                if verbose:
+                    print(f"  Warning: RNAcentral lookup failed for {record.id}: {e}")
+            if new_accession:
+                if verbose:
+                    print(f"  {record.id} -> {new_accession} (RNAcentral)")
+                mapping[record.id] = new_accession
+                continue
+            if verbose:
+                print(f"  {record.id}: sequence not found in RNAcentral entry")
+
         try:
+            if rnacentral.is_rnacentral_id(record.id):
+                # Not an NCBI accession; skip straight to BLAST
+                raise LookupError("RNAcentral id, NCBI lookup skipped")
             # Inside the try: a download that exhausts its retries raises, and
             # that must cost only this sequence, not the whole run.
             fasta_file = get_fasta_file(record.id)
@@ -430,44 +543,58 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
         # Remove gaps from Stockholm sequence (needed for both validation and BLAST)
         stockholm_seq = seq_data.replace('.', '').replace('-', '').upper()
 
+        # 'not_found' or 'mismatch' when the reference check fails; used to
+        # categorise the sequence if BLAST also fails.
+        failure = None
+
         # Get FASTA file
         ncbi_ok = False
-        try:
-            fasta_file = get_fasta_file(accession)
-            fasta = SeqIO.read(fasta_file, "fasta")
-
-            # Extract subsequence from NCBI (handle forward and reverse strand)
-            # Convert to 0-based indexing
-            if start < end:
-                # Forward strand
-                ncbi_subseq = str(fasta.seq[start - 1:end]).upper()
-            else:
-                # Reverse strand
-                ncbi_subseq = str(fasta.seq[end - 1:start].reverse_complement()).upper()
-
-            # Convert RNA to DNA for comparison (NCBI stores DNA)
-            stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
-
-            # Compare
-            if stockholm_seq_dna == ncbi_subseq:
-                ncbi_ok = True
-                if verbose:
-                    print(f"  {seq_name}: validated OK")
-            else:
-                if verbose:
-                    print(f"  {seq_name}: MISMATCH with NCBI")
-                    if len(stockholm_seq_dna) != len(ncbi_subseq):
-                        print(f"    Length: Stockholm={len(stockholm_seq_dna)}, NCBI={len(ncbi_subseq)}")
-                    else:
-                        # Show first difference
-                        for i, (a, b) in enumerate(zip(stockholm_seq_dna, ncbi_subseq)):
-                            if a != b:
-                                print(f"    First difference at position {i+1}: Stockholm={a}, NCBI={b}")
-                                break
-
-        except Exception as e:
+        if rnacentral.is_rnacentral_id(accession):
+            # RNAcentral id: validate against RNAcentral instead of NCBI
+            ncbi_ok, failure = rnacentral.validate_sequence(
+                accession, start, end, stockholm_seq, verbose=verbose)
             if verbose:
-                print(f"  {seq_name}: accession NOT FOUND in NCBI ({e})")
+                print(f"  {seq_name}: " + ("validated OK (RNAcentral)" if ncbi_ok
+                                          else f"RNAcentral validation failed ({failure})"))
+        else:
+            try:
+                fasta_file = get_fasta_file(accession)
+                fasta = SeqIO.read(fasta_file, "fasta")
+
+                # Extract subsequence from NCBI (handle forward and reverse strand)
+                # Convert to 0-based indexing
+                if start < end:
+                    # Forward strand
+                    ncbi_subseq = str(fasta.seq[start - 1:end]).upper()
+                else:
+                    # Reverse strand
+                    ncbi_subseq = str(fasta.seq[end - 1:start].reverse_complement()).upper()
+
+                # Convert RNA to DNA for comparison (NCBI stores DNA)
+                stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
+
+                # Compare
+                if stockholm_seq_dna == ncbi_subseq:
+                    ncbi_ok = True
+                    if verbose:
+                        print(f"  {seq_name}: validated OK")
+                else:
+                    failure = 'mismatch'
+                    if verbose:
+                        print(f"  {seq_name}: MISMATCH with NCBI")
+                        if len(stockholm_seq_dna) != len(ncbi_subseq):
+                            print(f"    Length: Stockholm={len(stockholm_seq_dna)}, NCBI={len(ncbi_subseq)}")
+                        else:
+                            # Show first difference
+                            for i, (a, b) in enumerate(zip(stockholm_seq_dna, ncbi_subseq)):
+                                if a != b:
+                                    print(f"    First difference at position {i+1}: Stockholm={a}, NCBI={b}")
+                                    break
+
+            except Exception as e:
+                failure = 'not_found'
+                if verbose:
+                    print(f"  {seq_name}: accession NOT FOUND in NCBI ({e})")
 
         if ncbi_ok:
             continue
@@ -504,15 +631,12 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                         if verbose:
                             print(f"    Could not re-validate BLAST hit {blast_result} — removing")
 
-        # Neither direct validation nor BLAST succeeded
-        # Determine which category this failure belongs to
-        try:
-            # If we got here via the except branch, it's not_found
-            fasta_file = get_fasta_file(accession)
-            SeqIO.read(fasta_file, "fasta")
-            # If we can read it, it was a mismatch
+        # Neither direct validation nor BLAST succeeded. Categorise using the
+        # reason recorded above (avoids a second lookup, and keeps RNAcentral
+        # ids away from NCBI).
+        if failure == 'mismatch':
             mismatched.add(seq_name)
-        except Exception:
+        else:
             not_found.add(seq_name)
 
     if show_bar:

@@ -1,0 +1,17 @@
+[project]
+name = "rfam-seed-qc"
+# Keep in sync with VERSION and CITATION.cff (checked by CI)
+version = "1.2.0"
+description = "Tools for ensuring the quality of multiple sequence alignments (MSAs) in Rfam."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.8"
+dependencies = [
+    "biopython>=1.79",
+]
+
+[tool.uv]
+# Not an installable package: run the scripts from a clone with `uv run`.
+# Non-Python tools (Infernal: cmscan, cmpress, esl-reformat) are not managed
+# by uv; see environment.yml or the README.
+package = false

@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use rfam-seed-qc, please cite it using the metadata below."
+type: software
+title: "rfam-seed-qc"
+abstract: >-
+  Tools for ensuring the quality of multiple sequence alignments (MSAs) in
+  Rfam. Validates Stockholm seed alignments and automatically fixes common
+  issues: missing coordinates, duplicate and overlapping sequences, and
+  sequences that do not match their NCBI or RNAcentral source, with a BLAST
+  fallback.
+authors:
+  - family-names: Madrigal
+    given-names: Pedro
+    orcid: "https://orcid.org/0000-0003-1959-8199"
+version: 1.2.0
+date-released: 2026-11-09
+license: Apache-2.0
+repository-code: "https://github.com/Rfam/rfam-seed-qc"
+keywords:
+  - Rfam
+  - RNA
+  - Stockholm format
+  - multiple sequence alignment
+  - quality control

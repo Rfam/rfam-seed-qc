@@ -1,0 +1,50 @@
+rfam-seed-qc v1.1.3
+Date: 2026-11-09 15:31:10
+File: rnacentral_ids.sto
+------------------------------------------------------------
+
+  Scanning against known Rfam families (models/15.1/Rfam.cm), using GA thresholds...
+    20% scanned (1/5 sequences)
+    40% scanned (2/5 sequences)
+    60% scanned (3/5 sequences)
+    80% scanned (4/5 sequences)
+    100% scanned (5/5 sequences)
+  URS00002C9E9D_7769/1-66: matches RF00005 (tRNA), E-value=1.2e-07 -- WARNING
+  1 sequence(s) match known Rfam families (see warnings above).
+  Fixing 1 missing coordinates (downloading from NCBI)...
+  [1/1 100.0%] URS0000572555_562
+  URS0000572555_562 -> URS0000572555_562/1-81 (RNAcentral)
+  Validating 5 sequence(s) against NCBI...
+  [1/5 20.0%] URS0000572555_1268238/1-81
+  URS0000572555_1268238/1-81: validated OK (RNAcentral)
+  [2/5 40.0%] URS00002C9E9D_7769/1-66
+  URS00002C9E9D_7769/1-66: validated OK (RNAcentral)
+  [3/5 60.0%] URS0000572555_562/1-81
+  URS0000572555_562/1-81: validated OK (RNAcentral)
+  [4/5 80.0%] URS0000572555_1268237/1-81
+    URS0000572555_1268237: URS0000572555 is not annotated in taxid 1268237
+  URS0000572555_1268237/1-81: RNAcentral validation failed (not_found)
+    Trying BLAST fallback for URS0000572555_1268237/1-81...
+    Running BLAST search (81 bp)...
+    BLAST hit: OZ554542.1/4181937-4182017 (identity=100.0%, coverage=100.0%, e=2.09e-31)
+    URS0000572555_1268237/1-81 -> OZ554542.1/4181937-4182017 (via BLAST, re-validated OK)
+  [5/5 100.0%] URS9999999999_9606/1-81
+    URS9999999999: NOT FOUND in RNAcentral
+  URS9999999999_9606/1-81: RNAcentral validation failed (not_found)
+    Trying BLAST fallback for URS9999999999_9606/1-81...
+    Running BLAST search (81 bp)...
+    BLAST hit: OZ554542.1/4181937-4182017 (identity=97.5%, coverage=100.0%, e=1.08e-28)
+    BLAST hit OZ554542.1/4181937-4182017 found but sequence still does not match NCBI — removing
+  1 sequence(s) rescued via BLAST
+  1 sequence(s) not found in NCBI/RNAcentral (invalid accession?)
+  Removed 1 sequence(s) total from output
+
+  Pairwise identity (avg 63.6%):
+    URS00002C9E9D_7769/1-66                  27.3% <-- LOW
+    URS0000572555_1268238/1-81               75.8%
+    URS0000572555_562/1-81                   75.8%
+    OZ554542.1/4181937-4182017               75.8%
+  Warning: esl-reformat not found in PATH, skipping gap minimization
+✓ Fixed 2 issue(s) in tests/rnacentral_ids.sto
+  Corrected file saved to: tests/rnacentral_ids_corrected.sto
+✓ tests/rnacentral_ids_corrected.sto: Valid Stockholm file
