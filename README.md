@@ -5,6 +5,26 @@ Tools for ensuring the quality of multiple sequence alignments (MSAs) in Rfam.
 
 This repository includes a modular validation script for Stockholm format alignment files (`.so`, `.sto`, `.stk`).
 
+### Installation
+
+**Option A: conda (everything included).** Installs Python, BioPython and the external tools (Infernal, BLAST):
+
+```bash
+git clone https://github.com/Rfam/rfam-seed-qc && cd rfam-seed-qc
+conda env create -f environment.yml
+conda activate rfam-seed-qc
+python3 validate_stockholm.py -v file.sto
+```
+
+**Option B: [uv](https://docs.astral.sh/uv/) (Python only).** On first use, `uv run` creates a local environment with the pinned dependencies from `uv.lock`:
+
+```bash
+git clone https://github.com/Rfam/rfam-seed-qc && cd rfam-seed-qc
+uv run validate_stockholm.py -v file.sto
+```
+
+uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/infernal/) (`cmscan`, `cmpress`, `esl-reformat`), validation and `--fix` still work, but `--cm-db` filtering is unavailable and the all-gap column removal is skipped with a warning. Install it with e.g. `brew install infernal` or `conda install -c bioconda infernal`.
+
 ### Usage
 
 ```bash
@@ -215,7 +235,7 @@ For more information, see the [Stockholm format specification](https://en.wikipe
 
 If you use rfam-seed-qc, please cite it using the metadata in [`CITATION.cff`](CITATION.cff) (GitHub's **Cite this repository** button provides APA and BibTeX formats).
 
-When releasing a new version, update `version` and `date-released` in `CITATION.cff` together with `VERSION`; a CI check fails if the two versions differ.
+When releasing a new version, update `VERSION`, `version` and `date-released` in `CITATION.cff`, and `version` in `pyproject.toml` (then run `uv lock`). A CI check fails if the versions differ or `uv.lock` is out of date.
 
 ## Contact us
 
