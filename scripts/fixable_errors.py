@@ -63,7 +63,10 @@ def _read_head(path, size=256):
     """Return the first bytes of a file as text, ignoring NULs (NCBI error
     replies can be UTF-16 encoded)."""
     with open(path, 'rb') as f:
-        return f.read(size).replace(b'\x00', b'').decode('utf-8', errors='replace')
+        head = f.read(size)
+        if head.startswith((b'\xff\xfe', b'\xfe\xff')):
+            return head.decode('utf-16', errors='replace')
+        return head.replace(b'\x00', b'').decode('utf-8', errors='replace')
 
 
 def _is_fasta_file(path):
