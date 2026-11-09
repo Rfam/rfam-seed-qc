@@ -1,0 +1,43 @@
+name: Check CITATION.cff
+
+on:
+  push:
+    paths:
+      - 'CITATION.cff'
+      - 'VERSION'
+      - '.github/workflows/citation.yml'
+  pull_request:
+    paths:
+      - 'CITATION.cff'
+      - 'VERSION'
+      - '.github/workflows/citation.yml'
+
+jobs:
+  check-citation:
+    name: Validate CITATION.cff and version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate CITATION.cff schema
+        run: |
+          pip install cffconvert==2.0.0
+          cffconvert --validate
+
+      - name: Check CITATION.cff version matches VERSION
+        run: |
+          file_version=$(tr -d '[:space:]' < VERSION)
+          cff_version=$(sed -n 's/^version:[[:space:]]*["'\'']\{0,1\}\([^"'\'']*\)["'\'']\{0,1\}[[:space:]]*$/\1/p' CITATION.cff)
+          echo "VERSION:      $file_version"
+          echo "CITATION.cff: $cff_version"
+          if [ "$file_version" != "$cff_version" ]; then
+            echo "::error file=CITATION.cff::version ($cff_version) does not match VERSION ($file_version). Update version and date-released in CITATION.cff."
+            exit 1
+          fi

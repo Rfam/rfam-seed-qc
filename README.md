@@ -211,6 +211,12 @@ The `#=GC SS_cons` line is the 2D structure consensus annotation, which represen
 
 For more information, see the [Stockholm format specification](https://en.wikipedia.org/wiki/Stockholm_format).
 
+## Citation
+
+If you use rfam-seed-qc, please cite it using the metadata in [`CITATION.cff`](CITATION.cff) (GitHub's **Cite this repository** button provides APA and BibTeX formats).
+
+When releasing a new version, update `version` and `date-released` in `CITATION.cff` together with `VERSION`; a CI check fails if the two versions differ.
+
 ## Contact us
 
 If you have any questions or feedback, feel free to submit a GitHub issue or [email us](https://docs.rfam.org/en/latest/).
