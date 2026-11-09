@@ -1,0 +1,15 @@
+# Dependabot version updates: opens PRs when newer versions are available.
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+version: 2
+updates:
+  # GitHub Actions used in .github/workflows/
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+  # Python dependencies (pyproject.toml / uv.lock)
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "monthly"

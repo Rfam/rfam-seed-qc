@@ -16,6 +16,10 @@ on:
       - 'uv.lock'
       - '.github/workflows/citation.yml'
 
+# Read-only checks: no need for write access to the repo
+permissions:
+  contents: read
+
 jobs:
   check-metadata:
     name: Validate CITATION.cff, versions and uv.lock
