@@ -87,12 +87,18 @@ def get_fasta_file(identifier, max_retries=3):
     is cached. Error replies are never cached, and invalid files left in the
     cache by older versions are discarded and re-downloaded.
 
+    Downloads use Python's urllib (no external curl/wget needed). A network
+    failure is reported as RuntimeError, never as a missing accession.
+
     Raises:
         AccessionNotFoundError: NCBI says the identifier does not exist.
         RuntimeError: download kept failing.
     """
-    import subprocess
+    import http.client
+    import shutil
     import tempfile
+    import urllib.error
+    import urllib.request
 
     script_location = os.path.dirname(os.path.abspath(__file__))
     fasta_folder = os.path.join(script_location, 'fasta')
@@ -110,26 +116,49 @@ def get_fasta_file(identifier, max_retries=3):
     if config.NCBI_EMAIL:
         params['email'] = config.NCBI_EMAIL
     url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?" + urlencode(params)
+    request = urllib.request.Request(url, headers={'User-Agent': config.NCBI_TOOL})
+    last_error = None
     for attempt in range(1, max_retries + 1):
         time.sleep(config.NCBI_REQUEST_DELAY)
         fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
         os.close(fd)
         try:
-            result = subprocess.run(['curl', '-s', '-o', tmp_path, url])
-            if result.returncode == 0 and _is_fasta_file(tmp_path):
+            ok = False
+            try:
+                with urllib.request.urlopen(request, timeout=config.NCBI_TIMEOUT) as resp, \
+                        open(tmp_path, 'wb') as out:
+                    shutil.copyfileobj(resp, out)
+                ok = True
+            except urllib.error.HTTPError as e:
+                # Keep the body: NCBI explains errors in it
+                last_error = e
+                try:
+                    with open(tmp_path, 'wb') as out:
+                        out.write(e.read())
+                except (http.client.HTTPException, OSError):
+                    pass
+            except (http.client.HTTPException, OSError, ValueError) as e:
+                # OSError: URLError, timeouts, connection resets.
+                # HTTPException: IncompleteRead, RemoteDisconnected.
+                last_error = e
+
+            if ok and _is_fasta_file(tmp_path):
                 os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
                 return fasta_file
-            if result.returncode == 0 and os.path.getsize(tmp_path) > 0:
+            if os.path.getsize(tmp_path) > 0:
                 head = _read_head(tmp_path).strip()
                 if head.startswith('Error'):
                     # Definitive answer from NCBI; retrying will not help
                     raise AccessionNotFoundError(f"NCBI has no record for {identifier}")
+            if ok:
+                last_error = 'unexpected reply (not FASTA)'
         finally:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         if attempt < max_retries:
             time.sleep(2 * attempt)  # backoff before retry
-    raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts")
+    raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts"
+                       f" ({last_error})")
 
 
 def get_accession_version(fasta_file):

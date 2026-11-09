@@ -186,6 +186,7 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
+| `NCBI_TIMEOUT` | 60 | Timeout in seconds for one NCBI FASTA download |
 | `NCBI_TOOL` | `rfam-seed-qc` | Tool name sent to NCBI (BLAST and E-utilities) |
 | `NCBI_EMAIL` | `None` | Your email, sent to NCBI so they can contact you before blocking heavy use (recommended) |
 | `RNACENTRAL_REQUEST_DELAY` | 2.0 | Delay between RNAcentral requests in seconds |

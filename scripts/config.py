@@ -47,6 +47,9 @@ CMSCAN_MAX_EVALUE = 1e-3
 # Delay between NCBI requests in seconds (to avoid rate limiting)
 NCBI_REQUEST_DELAY = 0.5
 
+# Timeout in seconds for a single NCBI FASTA download
+NCBI_TIMEOUT = 60
+
 # Identify this tool to NCBI (BLAST and E-utilities), as NCBI's usage
 # guidelines request, so NCBI can contact the user before blocking an IP.
 # Set NCBI_EMAIL to your own address; leave as None to send no email.
