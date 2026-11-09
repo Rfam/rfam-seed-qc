@@ -55,28 +55,73 @@ def find_missing_coordinates(sequence_entries):
     return missing
 
 
+class AccessionNotFoundError(RuntimeError):
+    """NCBI efetch reported that the identifier does not exist."""
+
+
+def _read_head(path, size=256):
+    """Return the first bytes of a file as text, ignoring NULs (NCBI error
+    replies can be UTF-16 encoded)."""
+    with open(path, 'rb') as f:
+        return f.read(size).replace(b'\x00', b'').decode('utf-8', errors='replace')
+
+
+def _is_fasta_file(path):
+    """True if the file exists and looks like FASTA (first non-blank char is '>')."""
+    try:
+        return os.path.getsize(path) > 0 and _read_head(path).lstrip().startswith('>')
+    except OSError:
+        return False
+
+
 def get_fasta_file(identifier, max_retries=3):
     """
     Download fasta file from NCBI if not already downloaded.
     Retries on transient network failures.
+
+    NCBI efetch answers an unknown identifier with HTTP 200 and an
+    'Error: ...' body, so the download is checked to be real FASTA before it
+    is cached. Error replies are never cached, and invalid files left in the
+    cache by older versions are discarded and re-downloaded.
+
+    Raises:
+        AccessionNotFoundError: NCBI says the identifier does not exist.
+        RuntimeError: download kept failing.
     """
+    import subprocess
+    import tempfile
+
     script_location = os.path.dirname(os.path.abspath(__file__))
     fasta_folder = os.path.join(script_location, 'fasta')
     os.makedirs(fasta_folder, exist_ok=True)
     fasta_file = os.path.join(fasta_folder, identifier + '.fasta')
-    if not os.path.exists(fasta_file) or os.stat(fasta_file).st_size == 0:
-        import subprocess
-        url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id={identifier}&rettype=fasta&retmode=text"
-        for attempt in range(1, max_retries + 1):
-            time.sleep(config.NCBI_REQUEST_DELAY)
-            result = subprocess.run(['curl', '-s', '-o', fasta_file, url])
-            if result.returncode == 0 and os.path.exists(fasta_file) and os.stat(fasta_file).st_size > 0:
-                break
-            if attempt < max_retries:
-                time.sleep(2 * attempt)  # backoff before retry
-            else:
-                raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts")
-    return fasta_file
+
+    if _is_fasta_file(fasta_file):
+        return fasta_file
+    if os.path.exists(fasta_file):
+        os.remove(fasta_file)  # stale error reply or empty file from an earlier run
+
+    url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id={identifier}&rettype=fasta&retmode=text"
+    for attempt in range(1, max_retries + 1):
+        time.sleep(config.NCBI_REQUEST_DELAY)
+        fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
+        os.close(fd)
+        try:
+            result = subprocess.run(['curl', '-s', '-o', tmp_path, url])
+            if result.returncode == 0 and _is_fasta_file(tmp_path):
+                os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
+                return fasta_file
+            if result.returncode == 0 and os.path.getsize(tmp_path) > 0:
+                head = _read_head(tmp_path).strip()
+                if head.startswith('Error'):
+                    # Definitive answer from NCBI; retrying will not help
+                    raise AccessionNotFoundError(f"NCBI has no record for {identifier}")
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        if attempt < max_retries:
+            time.sleep(2 * attempt)  # backoff before retry
+    raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts")
 
 
 def get_accession_version(fasta_file):
