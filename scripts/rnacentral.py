@@ -20,6 +20,7 @@ honour Retry-After, otherwise back off with jitter; send a descriptive
 User-Agent.
 """
 
+import http.client
 import json
 import random
 import re
@@ -100,8 +101,10 @@ def _get_json(url, max_retries, timeout):
                 if attempt < max_retries:
                     continue
             break
-        except (urllib.error.URLError, TimeoutError, ValueError) as e:
-            # ValueError covers malformed JSON
+        except (http.client.HTTPException, OSError, ValueError) as e:
+            # OSError: URLError, timeouts, connection resets.
+            # HTTPException: IncompleteRead, RemoteDisconnected (not wrapped by urllib).
+            # ValueError: malformed JSON or undecodable body.
             last_error = e
             if attempt < max_retries:
                 time.sleep(_backoff(attempt))
