@@ -95,9 +95,10 @@ def _get_json(url, max_retries, timeout):
                 return None
             last_error = e
             retryable = e.code == 429 or e.code >= 500
-            if retryable and attempt < max_retries:
+            if retryable and (attempt < max_retries or e.code == 429):
                 time.sleep(_backoff(attempt, e.headers.get('Retry-After') if e.headers else None))
-                continue
+                if attempt < max_retries:
+                    continue
             break
         except (urllib.error.URLError, TimeoutError, ValueError) as e:
             # ValueError covers malformed JSON
