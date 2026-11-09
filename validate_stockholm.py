@@ -386,11 +386,19 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # Validate sequences against NCBI (with BLAST fallback)
     if verbose:
         print(f"  Validating {len(processed_sequences)} sequence(s) against NCBI...")
+    # Collect unverified taxids for this file only (the list is module-level)
+    fixable_errors.rnacentral.unverified_taxids.clear()
     invalid_seqs, not_found_seqs, mismatched_seqs, blast_fixed = fixable_errors.validate_sequences_against_ncbi(processed_sequences, verbose=verbose)
 
-    # Report RNAcentral ids whose taxid could not be checked (kept, sequence validated)
-    current_accessions = {fixable_errors.parse_sequence_identifier(s)[0] for s, _ in processed_sequences}
-    unverified = [n for n in fixable_errors.rnacentral.unverified_taxids if n in current_accessions]
+    # Report RNAcentral sequences whose taxid could not be checked. Only list
+    # rows that are actually kept: an accession can be unverified for one row
+    # while another row with the same accession fails or is renamed by BLAST.
+    unverified_accessions = set(fixable_errors.rnacentral.unverified_taxids)
+    unverified = [
+        name for name, _ in processed_sequences
+        if fixable_errors.parse_sequence_identifier(name)[0] in unverified_accessions
+        and name not in invalid_seqs and name not in blast_fixed
+    ]
     if unverified:
         print(f"  Warning: taxid could not be verified in RNAcentral for {len(unverified)} sequence(s) "
               f"(sequence matched; kept): {', '.join(unverified)}")
