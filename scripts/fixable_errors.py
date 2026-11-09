@@ -16,6 +16,7 @@ warnings.filterwarnings("ignore", message=".*FASTA.*")
 
 # Import configuration
 from scripts import config
+from scripts import rnacentral
 
 
 def parse_sequence_identifier(seq_name):
@@ -243,7 +244,27 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
 
         found = False
 
+        # RNAcentral ids (URS..., URS..._taxid): locate within the RNAcentral
+        # sequence instead of NCBI. On failure fall through to BLAST.
+        if rnacentral.is_rnacentral_id(record.id):
+            try:
+                new_accession = rnacentral.find_coordinates(record.id, ungapped)
+            except rnacentral.RNAcentralError as e:
+                new_accession = None
+                if verbose:
+                    print(f"  Warning: RNAcentral lookup failed for {record.id}: {e}")
+            if new_accession:
+                if verbose:
+                    print(f"  {record.id} -> {new_accession} (RNAcentral)")
+                mapping[record.id] = new_accession
+                continue
+            if verbose:
+                print(f"  {record.id}: sequence not found in RNAcentral entry")
+
         try:
+            if rnacentral.is_rnacentral_id(record.id):
+                # Not an NCBI accession; skip straight to BLAST
+                raise LookupError("RNAcentral id, NCBI lookup skipped")
             # Inside the try: a download that exhausts its retries raises, and
             # that must cost only this sequence, not the whole run.
             fasta_file = get_fasta_file(record.id)
@@ -430,44 +451,58 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
         # Remove gaps from Stockholm sequence (needed for both validation and BLAST)
         stockholm_seq = seq_data.replace('.', '').replace('-', '').upper()
 
+        # 'not_found' or 'mismatch' when the reference check fails; used to
+        # categorise the sequence if BLAST also fails.
+        failure = None
+
         # Get FASTA file
         ncbi_ok = False
-        try:
-            fasta_file = get_fasta_file(accession)
-            fasta = SeqIO.read(fasta_file, "fasta")
-
-            # Extract subsequence from NCBI (handle forward and reverse strand)
-            # Convert to 0-based indexing
-            if start < end:
-                # Forward strand
-                ncbi_subseq = str(fasta.seq[start - 1:end]).upper()
-            else:
-                # Reverse strand
-                ncbi_subseq = str(fasta.seq[end - 1:start].reverse_complement()).upper()
-
-            # Convert RNA to DNA for comparison (NCBI stores DNA)
-            stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
-
-            # Compare
-            if stockholm_seq_dna == ncbi_subseq:
-                ncbi_ok = True
-                if verbose:
-                    print(f"  {seq_name}: validated OK")
-            else:
-                if verbose:
-                    print(f"  {seq_name}: MISMATCH with NCBI")
-                    if len(stockholm_seq_dna) != len(ncbi_subseq):
-                        print(f"    Length: Stockholm={len(stockholm_seq_dna)}, NCBI={len(ncbi_subseq)}")
-                    else:
-                        # Show first difference
-                        for i, (a, b) in enumerate(zip(stockholm_seq_dna, ncbi_subseq)):
-                            if a != b:
-                                print(f"    First difference at position {i+1}: Stockholm={a}, NCBI={b}")
-                                break
-
-        except Exception as e:
+        if rnacentral.is_rnacentral_id(accession):
+            # RNAcentral id: validate against RNAcentral instead of NCBI
+            ncbi_ok, failure = rnacentral.validate_sequence(
+                accession, start, end, stockholm_seq, verbose=verbose)
             if verbose:
-                print(f"  {seq_name}: accession NOT FOUND in NCBI ({e})")
+                print(f"  {seq_name}: " + ("validated OK (RNAcentral)" if ncbi_ok
+                                          else f"RNAcentral validation failed ({failure})"))
+        else:
+            try:
+                fasta_file = get_fasta_file(accession)
+                fasta = SeqIO.read(fasta_file, "fasta")
+
+                # Extract subsequence from NCBI (handle forward and reverse strand)
+                # Convert to 0-based indexing
+                if start < end:
+                    # Forward strand
+                    ncbi_subseq = str(fasta.seq[start - 1:end]).upper()
+                else:
+                    # Reverse strand
+                    ncbi_subseq = str(fasta.seq[end - 1:start].reverse_complement()).upper()
+
+                # Convert RNA to DNA for comparison (NCBI stores DNA)
+                stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
+
+                # Compare
+                if stockholm_seq_dna == ncbi_subseq:
+                    ncbi_ok = True
+                    if verbose:
+                        print(f"  {seq_name}: validated OK")
+                else:
+                    failure = 'mismatch'
+                    if verbose:
+                        print(f"  {seq_name}: MISMATCH with NCBI")
+                        if len(stockholm_seq_dna) != len(ncbi_subseq):
+                            print(f"    Length: Stockholm={len(stockholm_seq_dna)}, NCBI={len(ncbi_subseq)}")
+                        else:
+                            # Show first difference
+                            for i, (a, b) in enumerate(zip(stockholm_seq_dna, ncbi_subseq)):
+                                if a != b:
+                                    print(f"    First difference at position {i+1}: Stockholm={a}, NCBI={b}")
+                                    break
+
+            except Exception as e:
+                failure = 'not_found'
+                if verbose:
+                    print(f"  {seq_name}: accession NOT FOUND in NCBI ({e})")
 
         if ncbi_ok:
             continue
@@ -504,15 +539,12 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                         if verbose:
                             print(f"    Could not re-validate BLAST hit {blast_result} — removing")
 
-        # Neither direct validation nor BLAST succeeded
-        # Determine which category this failure belongs to
-        try:
-            # If we got here via the except branch, it's not_found
-            fasta_file = get_fasta_file(accession)
-            SeqIO.read(fasta_file, "fasta")
-            # If we can read it, it was a mismatch
+        # Neither direct validation nor BLAST succeeded. Categorise using the
+        # reason recorded above (avoids a second lookup, and keeps RNAcentral
+        # ids away from NCBI).
+        if failure == 'mismatch':
             mismatched.add(seq_name)
-        except Exception:
+        else:
             not_found.add(seq_name)
 
     if show_bar:

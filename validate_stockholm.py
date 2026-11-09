@@ -388,6 +388,13 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         print(f"  Validating {len(processed_sequences)} sequence(s) against NCBI...")
     invalid_seqs, not_found_seqs, mismatched_seqs, blast_fixed = fixable_errors.validate_sequences_against_ncbi(processed_sequences, verbose=verbose)
 
+    # Report RNAcentral ids whose taxid could not be checked (kept, sequence validated)
+    current_accessions = {fixable_errors.parse_sequence_identifier(s)[0] for s, _ in processed_sequences}
+    unverified = [n for n in fixable_errors.rnacentral.unverified_taxids if n in current_accessions]
+    if unverified:
+        print(f"  Warning: taxid could not be verified in RNAcentral for {len(unverified)} sequence(s) "
+              f"(sequence matched; kept): {', '.join(unverified)}")
+
     # Apply BLAST fixes: update sequence names with BLAST-found accession/coords
     if blast_fixed:
         if verbose:
@@ -405,9 +412,9 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
 
     if invalid_seqs:
         if not_found_seqs:
-            print(f"  {len(not_found_seqs)} sequence(s) not found in NCBI (invalid accession?)")
+            print(f"  {len(not_found_seqs)} sequence(s) not found in NCBI/RNAcentral (invalid accession?)")
         if mismatched_seqs:
-            print(f"  {len(mismatched_seqs)} sequence(s) don't match NCBI data")
+            print(f"  {len(mismatched_seqs)} sequence(s) don't match NCBI/RNAcentral data")
         processed_sequences = [(name, seq) for name, seq in processed_sequences if name not in invalid_seqs]
         num_removed += len(invalid_seqs)
 

@@ -91,6 +91,17 @@ When using `--fix`, all sequences are validated against NCBI to ensure they matc
 2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
 3. **Removal**: Sequences that fail both NCBI validation and BLAST (or whose BLAST hit does not exactly match NCBI) are removed from the output
 
+### RNAcentral Identifiers
+
+Sequences named with RNAcentral identifiers (e.g. `URS0000572555_1268238/1-81`, or `URS0000572555/1-81` without a taxid) are validated against the [RNAcentral REST API](https://rnacentral.org/help/rest-api) instead of NCBI:
+
+1. **Sequence**: the RNAcentral entry `/api/v1/rna/<URS>` must exist and be active. Coordinates are 1-based positions within the RNAcentral sequence (forward strand only), and the Stockholm sequence must exactly match that slice (U and T are treated as equal).
+2. **Taxid**: if the name has a taxid, `/api/v1/rna/<URS>_<taxid>` must exist, i.e. the URS is annotated in that species. For URS found in many species this endpoint can be very slow or return HTTP 500. In that case the sequence (already validated) is kept, and the taxid is reported as unverified.
+3. If validation fails (URS not found, inactive, sequence mismatch, bad coordinates, or taxid not annotated), the sequence follows the normal **BLAST fallback** path. A BLAST rescue renames it to the matching NCBI accession/coordinates; otherwise it is removed.
+4. URS identifiers without coordinates are located within their RNAcentral sequence when using `--fix`.
+
+Requests follow RNAcentral's access guidelines: one request every 2 seconds (the `/api/v1/rna/` limit is 30/minute), `Retry-After` is honoured on HTTP 429, and a descriptive User-Agent is sent. Expect about 2–4 seconds per URS sequence; taxid checks for URS found in many species can take up to about a minute. See the `RNACENTRAL_*` settings in `scripts/config.py`.
+
 ### Filtering Known Rfam Families (cmscan)
 
 When building a new Rfam family, you can check whether sequences already belong to existing Rfam families using the `--cm-db` option. This requires:
@@ -152,6 +163,12 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_HITLIST_SIZE` | 5 | Number of BLAST hits to retrieve |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
+| `RNACENTRAL_REQUEST_DELAY` | 2.0 | Delay between RNAcentral requests in seconds |
+| `RNACENTRAL_MAX_RETRIES` | 3 | Retries on HTTP 429/5xx/network errors |
+| `RNACENTRAL_TIMEOUT` | 30 | RNAcentral request timeout in seconds |
+| `RNACENTRAL_TAXID_TIMEOUT` | 60 | Timeout for the species-specific (taxid) check |
+| `RNACENTRAL_TAXID_MAX_RETRIES` | 1 | Retries for the taxid check before marking it unverified |
+| `RNACENTRAL_USER_AGENT` | `rfam-seed-qc (...)` | User-Agent sent to RNAcentral |
 
 ### Examples
 

@@ -36,3 +36,28 @@ CMSCAN_MAX_EVALUE = 1e-3
 
 # Delay between NCBI requests in seconds (to avoid rate limiting)
 NCBI_REQUEST_DELAY = 0.5
+
+
+# =============================================================================
+# RNAcentral Request Parameters (for URS identifiers)
+# =============================================================================
+
+# Delay between RNAcentral /api/v1/rna/ requests in seconds. The enforced limit
+# is 30 requests/minute per IP; RNAcentral recommends one request every 2 s.
+RNACENTRAL_REQUEST_DELAY = 2.0
+
+# Retries on HTTP 429 / 5xx / network errors (Retry-After is honoured)
+RNACENTRAL_MAX_RETRIES = 3
+
+# Per-request timeout in seconds
+RNACENTRAL_TIMEOUT = 30
+
+# The species-specific endpoint (URS_taxid) used to verify the taxid can be
+# very slow or return HTTP 500 for URS found in many species. Allow a longer
+# timeout but few retries; if it still fails the taxid is reported as
+# unverified and the (sequence-validated) entry is kept.
+RNACENTRAL_TAXID_TIMEOUT = 60
+RNACENTRAL_TAXID_MAX_RETRIES = 1
+
+# Descriptive User-Agent, as requested by RNAcentral's access guidelines
+RNACENTRAL_USER_AGENT = 'rfam-seed-qc (https://github.com/Rfam/rfam-seed-qc)'
