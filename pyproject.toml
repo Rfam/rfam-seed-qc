@@ -1,7 +1,7 @@
 [project]
 name = "rfam-seed-qc"
 # Keep in sync with VERSION and CITATION.cff (checked by CI)
-version = "1.2.0"
+version = "1.2.1"
 description = "Tools for ensuring the quality of multiple sequence alignments (MSAs) in Rfam."
 readme = "README.md"
 license = "Apache-2.0"
