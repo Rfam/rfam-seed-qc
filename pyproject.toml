@@ -12,6 +12,6 @@ dependencies = [
 
 [tool.uv]
 # Not an installable package: run the scripts from a clone with `uv run`.
-# Non-Python tools (Infernal: cmscan, cmpress, esl-reformat) are not managed
-# by uv; see environment.yml or the README.
+# Non-Python tools (Infernal: cmscan, cmpress, esl-reformat; BLAST+ for
+# --local) are not managed by uv; see environment.yml or the README.
 package = false

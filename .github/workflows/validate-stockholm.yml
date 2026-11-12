@@ -28,7 +28,8 @@ jobs:
         with:
           environment-file: environment.yml
           activate-environment: rfam-seed-qc
-          channels: bioconda,conda-forge,defaults
+          channels: conda-forge,bioconda
+          channel-priority: strict
 
       - name: Prepare Rfam CM database
         shell: bash -l {0}

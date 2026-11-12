@@ -23,12 +23,12 @@ git clone https://github.com/Rfam/rfam-seed-qc && cd rfam-seed-qc
 uv run validate_stockholm.py -v file.sto
 ```
 
-uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/infernal/) (`cmscan`, `cmpress`, `esl-reformat`), validation and `--fix` still work, but `--cm-db` filtering is unavailable and the all-gap column removal is skipped with a warning. Install it with e.g. `brew install infernal` or `conda install -c bioconda infernal`.
+uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/infernal/) (`cmscan`, `cmpress`, `esl-reformat`), validation and `--fix` still work, but `--cm-db` filtering is unavailable and the all-gap column removal is skipped with a warning. Install it with e.g. `brew install infernal` or `conda install -c bioconda infernal`. `--local` also needs [BLAST+](https://www.ncbi.nlm.nih.gov/books/NBK569861/) (`blastn`, `blastdbcmd`, `update_blastdb.pl`), e.g. `conda install -c bioconda blast`.
 
 ### Usage
 
 ```bash
-python3 validate_stockholm.py [-v] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] <file1.so> [file2.so ...]
+python3 validate_stockholm.py [-v] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] [--local [--blast-db BLAST_LOCAL_DB]] <file1.so> [file2.so ...]
 ```
 
 Options:
@@ -38,6 +38,19 @@ Options:
   - `file`: Create a new file with `_corrected` suffix
   - `stdout`: Print corrected content to stdout
 - `--cm-db <path>`: Path to Rfam CM database for filtering sequences matching known Rfam families (optional)
+- `--local`: Run the BLAST fallback locally with BLAST+ (`blastn`) instead of NCBI's web API. Needs BLAST+ (included in the conda environment) and a local database; see [Local BLAST](#local-blast)
+- `--blast-db <BLAST_LOCAL_DB>`: Local BLAST database to use with `--local`: a name found in `$BLASTDB` or a path (default: `nt`)
+
+#### Local BLAST
+
+NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Download the database once (several TB: check the size first with `update_blastdb.pl --showall pretty | grep -w nt`):
+
+```bash
+export BLASTDB=/path/to/blastdb && mkdir -p $BLASTDB && cd $BLASTDB
+update_blastdb.pl --decompress --num_threads 4 nt
+```
+
+Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. Local mode only replaces BLAST: fetching and checking sequences still uses NCBI E-utilities.
 
 ### What is validated?
 
@@ -184,6 +197,7 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_WORD_SIZE` | 11 | blastn word size |
 | `BLAST_MATCH_REWARD` / `BLAST_MISMATCH_PENALTY` | 2 / -3 | blastn match/mismatch scores |
 | `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |
+| `BLAST_NUM_THREADS` | CPUs available | Threads for local `blastn` (`--local` only) |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
 | `NCBI_TIMEOUT` | 60 | Timeout in seconds for one NCBI FASTA download |

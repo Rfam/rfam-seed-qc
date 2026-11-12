@@ -4,6 +4,8 @@ Configuration parameters for Stockholm validation and fixing.
 Modify these values to adjust the behavior of the validation script.
 """
 
+import os
+
 # =============================================================================
 # BLAST Search Parameters
 # =============================================================================
@@ -29,6 +31,16 @@ BLAST_WORD_SIZE = 11
 BLAST_MATCH_REWARD = 2
 BLAST_MISMATCH_PENALTY = -3
 BLAST_GAP_COSTS = "5 2"   # gap open, gap extend (affine)
+
+# Local BLAST database. Do not edit here: it is set at run time from
+# --local --blast-db BLAST_LOCAL_DB (default "nt"). None means BLAST uses
+# NCBI's web API.
+BLAST_LOCAL_DB = None
+
+# CPU threads for local blastn: the CPUs this process may use (on Linux this
+# respects cluster/cgroup CPU limits), falling back to all CPUs.
+BLAST_NUM_THREADS = (len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity')
+                     else (os.cpu_count() or 1))
 
 
 # =============================================================================
