@@ -11,6 +11,7 @@ It can automatically fix certain errors like duplicate sequences.
 import warnings as stdlib_warnings
 stdlib_warnings.filterwarnings("ignore", module="Bio")
 
+import os
 import sys
 import io
 import shutil
@@ -22,6 +23,7 @@ from pathlib import Path
 
 # Import validation modules
 from scripts import fatal_errors, fixable_errors, stockholm_warnings as warnings, parser, alignment_stats
+from scripts import config
 from scripts.config import CMSCAN_MAX_EVALUE
 
 
@@ -565,6 +567,26 @@ class TeeOutput:
         return self.buffer.getvalue()
 
 
+def check_local_blast(db):
+    """Exit early if local blastn or the BLAST database is unusable.
+
+    Returns lines describing the database (title, size, date) and threads,
+    for the report.
+    """
+    if not shutil.which('blastn') or not shutil.which('blastdbcmd'):
+        sys.exit("ERROR: --local needs BLAST+ (blastn, blastdbcmd) on PATH. "
+                 "Install with: conda install -c bioconda blast")
+    info = subprocess.run(['blastdbcmd', '-db', db, '-info'],
+                          capture_output=True, text=True)
+    if info.returncode != 0:
+        sys.exit(f"ERROR: BLAST database '{db}' not found or unreadable "
+                 f"(BLASTDB={os.environ.get('BLASTDB', 'unset')}): {info.stderr.strip()}")
+    lines = [f"  Local BLAST db: {line.strip()}" for line in info.stdout.splitlines()
+             if line.strip().startswith(('Database:', 'Date:')) or 'sequences;' in line]
+    lines.append(f"  Local BLAST threads: {config.BLAST_NUM_THREADS}")
+    return lines
+
+
 def main():
     """Main function to run validation from command line."""
     parser_arg = argparse.ArgumentParser(
@@ -596,8 +618,27 @@ def main():
         default=None,
         help='Path to Rfam CM database (e.g., Rfam.cm) to filter sequences matching known families'
     )
+    parser_arg.add_argument(
+        '--local',
+        action='store_true',
+        help='Run BLAST locally with BLAST+ instead of the NCBI web API'
+    )
+    parser_arg.add_argument(
+        '--blast-db',
+        default=None, metavar='BLAST_LOCAL_DB',
+        help='Local BLAST database for --local: a name in $BLASTDB or a path '
+             '(default: nt)'
+    )
     args = parser_arg.parse_args()
-    
+
+    if args.blast_db and not args.local:
+        parser_arg.error('--blast-db can only be used with --local')
+    local_blast_info = []
+    if args.local:
+        db = args.blast_db or 'nt'
+        local_blast_info = check_local_blast(db)
+        config.BLAST_LOCAL_DB = db
+
     all_valid = True
     
     for filepath in args.files:
@@ -619,6 +660,9 @@ def main():
 
         # Handle fixing if requested (always run to validate sequences against NCBI)
         if args.fix and result['is_valid']:
+            # Record the local database in each file's report (reproducibility)
+            for line in local_blast_info:
+                print(line)
             success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
             if success:
                 if args.output_mode == 'file':

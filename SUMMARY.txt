@@ -17,6 +17,8 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
   3. Fix missing coordinates - For sequences without coordinates (e.g., NZ_CP038662.1):
     - NCBI Direct Lookup: Download FASTA from NCBI, find sequence match to get coordinates
     - BLAST Fallback: If direct lookup fails, run BLAST search (>=95% identity, >=90% coverage, e-value <=1e-10)
+      By default via NCBI's web API (which searches core_nt); with --local, via local BLAST+ against nt
+      (or the database given with --blast-db).
     - Mark for removal: Sequences that fail both methods
   4. Remove duplicates - Remove sequences with identical accession, coordinates, and sequence data
   5. Remove overlapping sequences - For sequences from the same accession that overlap by >=1 bp, use greedy interval scheduling to keep maximum non-overlapping set

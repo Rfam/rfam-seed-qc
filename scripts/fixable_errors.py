@@ -4,10 +4,12 @@ Fixable error handlers for Stockholm files.
 These errors can be automatically corrected.
 """
 
+import io
 import os
 import sys
 import time
 import re
+import subprocess
 import warnings
 
 # Suppress BioPython warnings
@@ -17,6 +19,10 @@ warnings.filterwarnings("ignore", message=".*FASTA.*")
 # Import configuration
 from scripts import config
 from scripts import rnacentral
+
+
+class LocalBlastError(RuntimeError):
+    """Local blastn could not run (missing binary or database)."""
 
 
 def parse_sequence_identifier(seq_name):
@@ -207,23 +213,46 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
     blast_records = None
 
     try:
-        # Identify ourselves to NCBI (sent with every qblast request)
-        NCBIWWW.tool = config.NCBI_TOOL
-        NCBIWWW.email = config.NCBI_EMAIL
+        if config.BLAST_LOCAL_DB:
+            # Local BLAST+ with the same task and scoring as the web search
+            # below, so a local run and an API run differ only in database.
+            gap_open, gap_extend = config.BLAST_GAP_COSTS.split()
+            proc = subprocess.run(
+                ['blastn', '-task', 'blastn', '-db', config.BLAST_LOCAL_DB,
+                 '-word_size', str(config.BLAST_WORD_SIZE),
+                 '-reward', str(config.BLAST_MATCH_REWARD),
+                 '-penalty', str(config.BLAST_MISMATCH_PENALTY),
+                 '-gapopen', gap_open, '-gapextend', gap_extend,
+                 '-max_target_seqs', str(config.BLAST_HITLIST_SIZE),
+                 '-evalue', str(max_evalue),
+                 '-num_threads', str(config.BLAST_NUM_THREADS),
+                 '-outfmt', '5'],
+                input=f">query\n{dna_seq}\n", capture_output=True, text=True
+            )
+            if proc.returncode != 0:
+                # A broken local setup is not "no hit": stop rather than let
+                # every sequence be removed.
+                raise LocalBlastError(f"local blastn failed: {proc.stderr.strip()}")
+            result_handle = io.StringIO(proc.stdout)
+        else:
+            # Identify ourselves to NCBI (sent with every qblast request)
+            NCBIWWW.tool = config.NCBI_TOOL
+            NCBIWWW.email = config.NCBI_EMAIL
 
-        # Standard blastn (not megablast) against nt, with the task's scoring
-        # parameters set explicitly rather than relying on NCBI's defaults.
-        # MEGABLAST is deliberately not sent. Limit results for speed.
-        result_handle = NCBIWWW.qblast(
-            "blastn", "nt", dna_seq,
-            word_size=config.BLAST_WORD_SIZE,
-            nucl_reward=config.BLAST_MATCH_REWARD,
-            nucl_penalty=config.BLAST_MISMATCH_PENALTY,
-            gapcosts=config.BLAST_GAP_COSTS,
-            hitlist_size=config.BLAST_HITLIST_SIZE,
-            expect=max_evalue,
-            format_type="XML"
-        )
+            # Standard blastn (not megablast) against nt, with the task's scoring
+            # parameters set explicitly rather than relying on NCBI's defaults.
+            # MEGABLAST is deliberately not sent. Limit results for speed.
+            # Note: NCBI's server currently searches core_nt when asked for nt.
+            result_handle = NCBIWWW.qblast(
+                "blastn", "nt", dna_seq,
+                word_size=config.BLAST_WORD_SIZE,
+                nucl_reward=config.BLAST_MATCH_REWARD,
+                nucl_penalty=config.BLAST_MISMATCH_PENALTY,
+                gapcosts=config.BLAST_GAP_COSTS,
+                hitlist_size=config.BLAST_HITLIST_SIZE,
+                expect=max_evalue,
+                format_type="XML"
+            )
         blast_records = NCBIXML.parse(result_handle)
         blast_record = next(blast_records)
 
@@ -240,7 +269,8 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                     accession = None
 
                     # Format: "gi|xxx|ref|NZ_CP045771.1|" or "gi|xxx|gb|CP041614.1|"
-                    accession_match = re.search(r'\|(ref|gb|emb|dbj)\|([^|]+)\|', hit_def)
+                    # (web API), or "ref|NZ_CP045771.1|" (local BLAST+ databases)
+                    accession_match = re.search(r'(?:^|\|)(ref|gb|emb|dbj)\|([^|]+)\|', hit_def)
                     if accession_match:
                         accession = accession_match.group(2).rstrip('|')
                     else:
@@ -266,6 +296,8 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             print(f"    No accurate BLAST hit found")
         return None, False
 
+    except LocalBlastError:
+        raise
     except Exception as e:
         if verbose:
             print(f"    BLAST search failed: {e}")
