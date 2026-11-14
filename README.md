@@ -1,4 +1,9 @@
 # rfam-seed-qc
+
+[![Release](https://img.shields.io/github/v/release/Rfam/rfam-seed-qc)](https://github.com/Rfam/rfam-seed-qc/releases)
+[![License](https://img.shields.io/github/license/Rfam/rfam-seed-qc)](LICENSE)
+![Python](https://img.shields.io/badge/python-%3E%3D3.8-blue)
+
 Tools for ensuring the quality of multiple sequence alignments (MSAs) in Rfam.
 
 ## Stockholm File Validation
