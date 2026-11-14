@@ -470,7 +470,14 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
 
     # 2. File-level annotations (#=GF) - keep at top, then record which tool
     #    and version produced this file (replacing the note from any earlier run)
-    corrected_lines.extend(l for l in gf_lines if PROVENANCE_PREFIX not in l)
+    for line in gf_lines:
+        # Drop only our own generated line; keep curated lines that mention the tool
+        fields = line.split(maxsplit=2)
+        if (len(fields) == 3 and fields[:2] == ['#=GF', 'CC']
+                and fields[2].startswith(f'{PROVENANCE_PREFIX} v')
+                and fields[2].rstrip().endswith(f'({TOOL_URL})')):
+            continue
+        corrected_lines.append(line)
     corrected_lines.append(f"#=GF CC   {PROVENANCE_PREFIX} v{tool_version()} ({TOOL_URL})\n")
 
     # 3. Sequence-level metadata (#=GS) for kept sequences
