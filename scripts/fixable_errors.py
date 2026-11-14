@@ -84,9 +84,13 @@ def _is_fasta_file(path):
         return False
 
 
-# Looks like an NCBI accession (e.g. NR_038927.2, AF265547, NZ_CP045771.1),
-# as opposed to a free-text name such as Homo_sapiens_chr12.
-_ACCESSION_RE = re.compile(r'^[A-Z0-9_]+(\.\d+)?$')
+# NCBI nucleotide accession formats, optionally versioned: INSDC (X03205,
+# AF265547, AC277891), WGS/TSA (JAHKSV010000123) and RefSeq (NR_038927,
+# NC_000913, NZ_CP045771, NZ_JAHKSV010000123). With --local, only these fall
+# back to NCBI when missing from the local database; other labels (species
+# names, metagenome contigs such as SRS013261_C1604114, plain numbers) go
+# straight to BLAST, so offline runs do not wait on network timeouts.
+_ACCESSION_RE = re.compile(r'^(?:[A-Z]{2}_[A-Z]{0,6}|[A-Z]{1,6})\d{5,12}(\.\d+)?$')
 
 
 def _fetch_local(identifier, fasta_file, fasta_folder):
