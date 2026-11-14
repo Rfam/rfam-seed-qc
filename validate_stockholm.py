@@ -711,8 +711,9 @@ def main():
         # Handle fixing if requested (always run to validate sequences against NCBI)
         if args.fix and result['is_valid']:
             # Record the local database in each file's report (reproducibility)
+            # (stderr in stdout mode, so the output still starts with the header)
             for line in local_blast_info:
-                print(line)
+                print(line, file=sys.stderr if args.output_mode == 'stdout' else sys.stdout)
             try:
                 success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
             except fixable_errors.LocalBlastError as e:
