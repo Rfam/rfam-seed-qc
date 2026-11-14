@@ -39,7 +39,8 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
      final alignment using esl-reformat from the Easel/Infernal package.
      All-gap columns can arise after sequence removals in earlier steps.
      Reports the number of columns removed and the resulting alignment width.
-     Requires esl-reformat to be installed and in PATH (part of Infernal).
+     Requires esl-reformat to be installed and in PATH (Infernal source/Homebrew, or the
+     bioconda 'easel' package, which environment.yml installs).
   9. Write output - Save corrected file with proper Stockholm format order:
     - # STOCKHOLM 1.0 header
     - #=GF annotations (file-level)

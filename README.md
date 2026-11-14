@@ -7,7 +7,7 @@ This repository includes a modular validation script for Stockholm format alignm
 
 ### Installation
 
-**Option A: conda (everything included).** Installs Python, BioPython and the external tools (Infernal, BLAST):
+**Option A: conda (everything included).** Installs Python, BioPython and the external tools (Infernal, Easel, BLAST):
 
 ```bash
 git clone https://github.com/Rfam/rfam-seed-qc && cd rfam-seed-qc
@@ -23,7 +23,7 @@ git clone https://github.com/Rfam/rfam-seed-qc && cd rfam-seed-qc
 uv run validate_stockholm.py -v file.sto
 ```
 
-uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/infernal/) (`cmscan`, `cmpress`, `esl-reformat`), validation and `--fix` still work, but `--cm-db` filtering is unavailable and the all-gap column removal is skipped with a warning. Install it with e.g. `brew install infernal` or `conda install -c bioconda infernal`. `--local` also needs [BLAST+](https://www.ncbi.nlm.nih.gov/books/NBK569861/) (`blastn`, `blastdbcmd`, `update_blastdb.pl`), e.g. `conda install -c bioconda blast`.
+uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/infernal/) (`cmscan`, `cmpress`, `esl-reformat`), validation and `--fix` still work, but `--cm-db` filtering is unavailable and the all-gap column removal is skipped with a warning. Install it with e.g. `brew install infernal`, or `conda install -c conda-forge -c bioconda infernal easel` (bioconda's `infernal` package does not include `esl-reformat`; it is in `easel`). `--local` also needs [BLAST+](https://www.ncbi.nlm.nih.gov/books/NBK569861/) (`blastn`, `blastdbcmd`, `update_blastdb.pl`), e.g. `conda install -c bioconda blast`.
 
 ### Usage
 
@@ -182,7 +182,7 @@ When running with `--fix -v`, the script computes and displays the average pairw
 
 After all sequence filtering and corrections are applied, the script runs `esl-reformat --mingap stockholm` on the final alignment to remove any all-gap columns. All-gap columns can be introduced when sequences are removed during earlier steps (duplicate removal, overlap resolution, NCBI validation). This step ensures the corrected alignment has no unnecessary gap-only columns.
 
-Requires `esl-reformat` from the [Easel](http://eddylab.org/software/easel/) library, which is distributed as part of [Infernal](http://eddylab.org/infernal/). If `esl-reformat` is not found in PATH, this step is skipped and a warning is printed.
+Requires `esl-reformat` from the [Easel](http://eddylab.org/software/easel/) library, which is distributed with [Infernal](http://eddylab.org/infernal/) source releases and Homebrew; with conda it is in the separate bioconda `easel` package (included in `environment.yml`). If `esl-reformat` is not found in PATH, this step is skipped and a warning is printed.
 
 The report includes the number of all-gap columns removed and the resulting alignment width.
 
