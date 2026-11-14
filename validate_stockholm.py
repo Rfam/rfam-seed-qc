@@ -27,6 +27,18 @@ from scripts import config
 from scripts.config import CMSCAN_MAX_EVALUE
 
 
+TOOL_URL = 'https://github.com/Rfam/rfam-seed-qc'
+PROVENANCE_PREFIX = 'Corrected by rfam-seed-qc'
+
+
+def tool_version():
+    """Version from the VERSION file, or 'unknown'."""
+    try:
+        return (Path(__file__).parent / 'VERSION').read_text().strip()
+    except Exception:
+        return 'unknown'
+
+
 def validate_stockholm_file(filepath):
     """
     Validate a Stockholm format alignment file.
@@ -456,8 +468,10 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # 1. Header (# STOCKHOLM 1.0)
     corrected_lines.extend(header_lines)
 
-    # 2. File-level annotations (#=GF) - keep at top
-    corrected_lines.extend(gf_lines)
+    # 2. File-level annotations (#=GF) - keep at top, then record which tool
+    #    and version produced this file (replacing the note from any earlier run)
+    corrected_lines.extend(l for l in gf_lines if PROVENANCE_PREFIX not in l)
+    corrected_lines.append(f"#=GF CC   {PROVENANCE_PREFIX} v{tool_version()} ({TOOL_URL})\n")
 
     # 3. Sequence-level metadata (#=GS) for kept sequences
     for orig_seq_id, ann_line in gs_lines:
@@ -724,11 +738,7 @@ def main():
         if tee is not None:
             sys.stdout = tee.original
             report_path = path.parent / f"{path.stem}_Report.txt"
-            version_file = Path(__file__).parent / 'VERSION'
-            try:
-                version = version_file.read_text().strip()
-            except Exception:
-                version = 'unknown'
+            version = tool_version()
             header = (
                 f"rfam-seed-qc v{version}\n"
                 f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
