@@ -217,10 +217,13 @@ def get_fasta_file(identifier, max_retries=3):
             if ok and _is_fasta_file(tmp_path):
                 os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
                 return fasta_file
-            if os.path.getsize(tmp_path) > 0:
+            if ok and os.path.getsize(tmp_path) > 0:
+                # NCBI answers an unknown id with HTTP 200 and an 'Error: ...'
+                # body: a definitive answer, retrying will not help. An error
+                # status (429, 5xx) is never read this way, even if its body
+                # starts with 'Error', so it gets the retries below.
                 head = _read_head(tmp_path).strip()
                 if head.startswith('Error'):
-                    # Definitive answer from NCBI; retrying will not help
                     raise AccessionNotFoundError(f"NCBI has no record for {identifier}")
             if ok:
                 last_error = 'unexpected reply (not FASTA)'
