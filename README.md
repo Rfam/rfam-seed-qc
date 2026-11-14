@@ -56,7 +56,7 @@ export NCBI_API_KEY=your_key_here
 
 #### Local BLAST
 
-NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Download the database once. In November 2026 `nt` was 1.1 TB to download and 1.3 TB on disk; check the current size first with `update_blastdb.pl --source ncbi --showall pretty | grep -w nt`:
+NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Both modes use the same blastn settings, so `--local` is not more sensitive, but it is more complete: a sequence that is only in `nt` can be rescued with `--local` but not by the web search. Download the database once. In November 2026 `nt` was 1.1 TB to download and 1.3 TB on disk; check the current size first with `update_blastdb.pl --source ncbi --showall pretty | grep -w nt`:
 
 ```bash
 export BLASTDB=/path/to/blastdb && mkdir -p $BLASTDB && cd $BLASTDB
