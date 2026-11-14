@@ -684,7 +684,13 @@ def main():
             # Record the local database in each file's report (reproducibility)
             for line in local_blast_info:
                 print(line)
-            success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
+            try:
+                success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
+            except fixable_errors.LocalBlastError as e:
+                if tee is not None:
+                    sys.stdout = tee.original
+                sys.exit(f"ERROR: local BLAST database problem, stopping so no sequence "
+                         f"is removed by mistake: {e}")
             if success:
                 if args.output_mode == 'file':
                     print(f"✓ Fixed {num_fixes} issue(s) in {filepath}")

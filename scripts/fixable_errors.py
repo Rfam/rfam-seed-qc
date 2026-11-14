@@ -91,7 +91,12 @@ _ACCESSION_RE = re.compile(r'^[A-Z0-9_]+(\.\d+)?$')
 
 def _fetch_local(identifier, fasta_file, fasta_folder):
     """With --local, copy the record from the local BLAST database into the
-    FASTA cache. Returns True on success, False if the database lacks it."""
+    FASTA cache. Returns True on success, False if the database lacks it.
+
+    Raises LocalBlastError for any other failure (unreadable volume, broken
+    index, I/O error): treating those as "not found" could remove valid
+    sequences, so the run stops instead.
+    """
     import tempfile
     fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
     try:
@@ -99,11 +104,14 @@ def _fetch_local(identifier, fasta_file, fasta_folder):
             proc = subprocess.run(
                 ['blastdbcmd', '-db', config.BLAST_LOCAL_DB, '-entry', identifier,
                  '-target_only', '-outfmt', '%f'],
-                stdout=out, stderr=subprocess.DEVNULL)
+                stdout=out, stderr=subprocess.PIPE, text=True)
         if proc.returncode == 0 and _is_fasta_file(tmp_path):
             os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
             return True
-        return False
+        if 'Entry not found' in proc.stderr:
+            return False
+        raise LocalBlastError(f"blastdbcmd failed for {identifier}: "
+                              f"{proc.stderr.strip() or 'exit code %d' % proc.returncode}")
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
@@ -485,6 +493,8 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
                 mapping[record.id] = new_accession
                 continue
 
+        except LocalBlastError:
+            raise  # broken local database: stop, don't drop the sequence
         except Exception as e:
             if verbose:
                 print(f"  Warning: Could not read fasta for {record.id}: {e}")
@@ -688,6 +698,8 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                                     print(f"    First difference at position {i+1}: Stockholm={a}, NCBI={b}")
                                     break
 
+            except LocalBlastError:
+                raise  # broken local database: stop, don't drop the sequence
             except Exception as e:
                 failure = 'not_found'
                 if verbose:
@@ -724,6 +736,8 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                         else:
                             if verbose:
                                 print(f"    BLAST hit {blast_result} found but sequence still does not match NCBI — removing")
+                    except LocalBlastError:
+                        raise  # broken local database: stop, don't drop the sequence
                     except Exception:
                         if verbose:
                             print(f"    Could not re-validate BLAST hit {blast_result} — removing")
