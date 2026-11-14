@@ -149,9 +149,15 @@ def get_fasta_file(identifier, max_retries=3):
     os.makedirs(fasta_folder, exist_ok=True)
     fasta_file = os.path.join(fasta_folder, identifier + '.fasta')
 
+    # A versioned accession (AF228364.1) never changes sequence, so its cached
+    # copy is valid for any source. An unversioned one (AF228364) means "the
+    # current version", which can differ between sources and snapshots, so
+    # with --local it is always resolved in the selected database (cheap).
+    versioned = re.search(r'\.\d+$', identifier) is not None
     if _is_fasta_file(fasta_file):
-        return fasta_file
-    if os.path.exists(fasta_file):
+        if versioned or not config.BLAST_LOCAL_DB:
+            return fasta_file
+    elif os.path.exists(fasta_file):
         os.remove(fasta_file)  # stale error reply or empty file from an earlier run
 
     if config.BLAST_LOCAL_DB:
