@@ -28,7 +28,7 @@ uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/
 ### Usage
 
 ```bash
-python3 validate_stockholm.py [-v] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] [--local [--blast-db BLAST_LOCAL_DB]] <file1.so> [file2.so ...]
+python3 validate_stockholm.py [-v] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] [--local [--blast-db BLAST_LOCAL_DB] [--threads N]] <file1.so> [file2.so ...]
 ```
 
 Options:
@@ -41,6 +41,7 @@ Options:
 - `--cm-db <path>`: Path to Rfam CM database for filtering sequences matching known Rfam families (optional)
 - `--local`: Run BLAST and sequence lookups locally with BLAST+ (`blastn`, `blastdbcmd`) instead of NCBI's web services. Needs BLAST+ (included in the conda environment) and a local database; see [Local BLAST](#local-blast)
 - `--blast-db <BLAST_LOCAL_DB>`: Local BLAST database to use with `--local`: a name found in `$BLASTDB` or a path (default: `nt`)
+- `--threads <N>`: Threads for local `blastn` with `--local` (default: the CPUs available to the job, capped by `SLURM_CPUS_PER_TASK`). Set it explicitly in containers limited by CPU quota (e.g. `docker --cpus`)
 
 #### Local BLAST
 
@@ -204,7 +205,7 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_WORD_SIZE` | 11 | blastn word size |
 | `BLAST_MATCH_REWARD` / `BLAST_MISMATCH_PENALTY` | 2 / -3 | blastn match/mismatch scores |
 | `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |
-| `BLAST_NUM_THREADS` | CPUs available | Threads for local `blastn` (`--local` only) |
+| `BLAST_NUM_THREADS` | CPUs available | Threads for local `blastn` (`--local` only; `--threads` overrides it) |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
 | `NCBI_TIMEOUT` | 60 | Timeout in seconds for one NCBI FASTA download |

@@ -40,10 +40,20 @@ BLAST_GAP_COSTS = "5 2"   # gap open, gap extend (affine)
 # lacks). None means BLAST uses NCBI's web API and sequences come from NCBI.
 BLAST_LOCAL_DB = None
 
-# CPU threads for local blastn: the CPUs this process may use (on Linux this
-# respects cluster/cgroup CPU limits), falling back to all CPUs.
-BLAST_NUM_THREADS = (len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity')
-                     else (os.cpu_count() or 1))
+# CPU threads for local blastn (override with --threads). Default: the CPUs
+# this process may run on (on Linux this follows CPU pinning, e.g. SLURM's),
+# capped by SLURM_CPUS_PER_TASK when set, for clusters that do not pin CPUs.
+# CPU-time quotas (e.g. docker --cpus) are not detected: use --threads there.
+def _default_threads():
+    n = (len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity')
+         else (os.cpu_count() or 1))
+    slurm = os.environ.get('SLURM_CPUS_PER_TASK', '')
+    if slurm.isdigit() and int(slurm) > 0:
+        n = min(n, int(slurm))
+    return n
+
+
+BLAST_NUM_THREADS = _default_threads()
 
 
 # =============================================================================

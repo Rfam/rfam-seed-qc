@@ -650,10 +650,22 @@ def main():
         help='Local BLAST database for --local: a name in $BLASTDB or a path '
              '(default: nt)'
     )
+    parser_arg.add_argument(
+        '--threads',
+        type=int, default=None, metavar='N',
+        help='Threads for local blastn with --local (default: CPUs available '
+             'to the job)'
+    )
     args = parser_arg.parse_args()
 
     if args.blast_db and not args.local:
         parser_arg.error('--blast-db can only be used with --local')
+    if args.threads is not None and not args.local:
+        parser_arg.error('--threads can only be used with --local')
+    if args.threads is not None and args.threads < 1:
+        parser_arg.error('--threads must be at least 1')
+    if args.threads:
+        config.BLAST_NUM_THREADS = args.threads
     local_blast_info = []
     if args.local:
         db = args.blast_db or 'nt'
