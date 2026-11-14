@@ -378,6 +378,11 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
     except LocalBlastError:
         raise
     except Exception as e:
+        if config.BLAST_LOCAL_DB:
+            # Locally, a real "no hit" is valid XML with no hits and never
+            # gets here; any exception (blastn missing, unreadable output) is
+            # a failure, and must not be mistaken for "no hit".
+            raise LocalBlastError(f"local BLAST failed: {type(e).__name__}: {e}") from e
         if verbose:
             print(f"    BLAST search failed: {e}")
         return None, False
