@@ -15,3 +15,14 @@ dependencies = [
 # Non-Python tools (Infernal: cmscan, cmpress; Easel: esl-reformat; BLAST+
 # for --local) are not managed by uv; see environment.yml or the README.
 package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "network: needs internet access to NCBI (run with -m 'not network' to skip)",
+]

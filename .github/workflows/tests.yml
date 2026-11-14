@@ -1,0 +1,32 @@
+name: Tests
+
+on:
+  push:
+    paths-ignore:
+      - 'alignments/**'
+  pull_request:
+    paths-ignore:
+      - 'alignments/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Validator tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+
+      # Fixture tests run offline. The --fix test (marked "network") looks up
+      # two sequences at NCBI.
+      - name: Run tests
+        run: uv run pytest -v

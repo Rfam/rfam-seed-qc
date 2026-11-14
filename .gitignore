@@ -21,3 +21,4 @@ Thumbs.db
 
 Rfam.cm*
 scripts/fasta/*
+.pytest_cache/

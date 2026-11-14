@@ -261,10 +261,13 @@ python3 validate_stockholm.py -v --fix --output-mode file --local --blast-db /pa
 
 ### Continuous Integration
 
-The repository includes a GitHub Action that automatically validates Stockholm files in pull requests. The CI check will:
-- Trigger when a PR modifies `.so`, `.sto`, or `.stk` files
-- Run the validation script on all changed files
-- Pass only if all files are valid
+**Curating alignments** (`validate-stockholm.yml`): push a Stockholm file (`.so`, `.sto`, `.stk`, `.stockholm`) to the `alignments/` folder on any branch except `main`. The workflow runs `validate_stockholm.py -v --fix --cm-db models/15.1/Rfam.cm` on each new or changed file (web BLAST, not `--local`) and commits the `_corrected` file and `_Report.txt` back to the branch, next to the input. Files outside `alignments/` are ignored.
+
+**Tests** (`tests.yml`): on every push and pull request, except pushes that only change `alignments/`, the validator is run on the small files in `tests/fixtures/`:
+- `valid/`, `invalid/`, `fixable/`: validation only, offline. Each file checks one case, such as a missing `//` or a duplicate sequence, for the expected exit code and message.
+- `fix/`: one `--fix` run on two real sequences plus a duplicate and an overlap. It looks up two sequences at NCBI (no BLAST search), so it takes seconds.
+
+Run the tests locally with `uv run pytest`, or `uv run pytest -m "not network"` to skip the NCBI test. When adding a fixture to `valid/`, `invalid/` or `fixable/`, add its expected result to `tests/test_validator.py`; a test fails if a fixture is not listed.
 
 ### Stockholm Format Reference
 
