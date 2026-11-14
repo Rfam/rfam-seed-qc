@@ -683,11 +683,13 @@ def main():
         parser_arg.error('--threads must be at least 1')
     if args.threads:
         config.BLAST_NUM_THREADS = args.threads
-    local_blast_info = []
+    run_info = []
     if args.local:
         db = args.blast_db or 'nt'
-        local_blast_info = check_local_blast(db)
+        run_info = check_local_blast(db)
         config.BLAST_LOCAL_DB = db
+    if config.NCBI_API_KEY:
+        run_info.append("  NCBI API key: used (from NCBI_API_KEY)")  # never print the key
 
     all_valid = True
     
@@ -712,15 +714,14 @@ def main():
         if args.fix and result['is_valid']:
             # Record the local database in each file's report (reproducibility)
             # (stderr in stdout mode, so the output still starts with the header)
-            for line in local_blast_info:
+            for line in run_info:
                 print(line, file=sys.stderr if args.output_mode == 'stdout' else sys.stdout)
             try:
                 success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
-            except fixable_errors.LocalBlastError as e:
+            except fixable_errors.RunAbortError as e:
                 if tee is not None:
                     sys.stdout = tee.original
-                sys.exit(f"ERROR: local BLAST database problem, stopping so no sequence "
-                         f"is removed by mistake: {e}")
+                sys.exit(f"ERROR: {e}\nStopping so no sequence is removed by mistake.")
             if success:
                 if args.output_mode == 'file':
                     print(f"✓ Fixed {num_fixes} issue(s) in {filepath}")

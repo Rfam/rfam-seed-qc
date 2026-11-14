@@ -22,8 +22,23 @@ from scripts import config
 from scripts import rnacentral
 
 
-class LocalBlastError(RuntimeError):
+class RunAbortError(RuntimeError):
+    """A failure that must stop the run: carrying on would remove sequences
+    for reasons that have nothing to do with the sequences themselves."""
+
+
+class LocalBlastError(RunAbortError):
     """Local blastn could not run (missing binary or database)."""
+
+
+class NCBIUnavailableError(RunAbortError):
+    """NCBI kept refusing requests (HTTP 429 rate limit or 5xx) after retries."""
+
+
+def _ncbi_refused(e):
+    """True for HTTP errors that mean 'try later' (rate limit, server trouble)."""
+    import urllib.error
+    return isinstance(e, urllib.error.HTTPError) and (e.code == 429 or e.code >= 500)
 
 
 def parse_sequence_identifier(seq_name):
@@ -179,11 +194,15 @@ def get_fasta_file(identifier, max_retries=3):
               'tool': config.NCBI_TOOL}
     if config.NCBI_EMAIL:
         params['email'] = config.NCBI_EMAIL
+    if config.NCBI_API_KEY:
+        # Rate limit then applies to the key, not a shared (cluster) IP
+        params['api_key'] = config.NCBI_API_KEY
     url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?" + urlencode(params)
     request = urllib.request.Request(url, headers={'User-Agent': config.NCBI_TOOL})
     last_error = None
     for attempt in range(1, max_retries + 1):
-        time.sleep(config.NCBI_REQUEST_DELAY)
+        time.sleep(config.NCBI_REQUEST_DELAY_WITH_KEY if config.NCBI_API_KEY
+                   else config.NCBI_REQUEST_DELAY)
         fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
         os.close(fd)
         wait = 2 * attempt  # backoff before retry
@@ -209,6 +228,12 @@ def get_fasta_file(identifier, max_retries=3):
                         out.write(e.read())
                 except (http.client.HTTPException, OSError):
                     pass
+                if e.code == 400 and config.NCBI_API_KEY and 'API key' in _read_head(tmp_path):
+                    # A bad key makes every request fail: stop rather than
+                    # report every sequence as missing. Never echo the key.
+                    raise NCBIUnavailableError(
+                        "NCBI rejected the API key in NCBI_API_KEY (invalid). "
+                        "Fix or unset NCBI_API_KEY")
             except (http.client.HTTPException, OSError, ValueError) as e:
                 # OSError: URLError, timeouts, connection resets.
                 # HTTPException: IncompleteRead, RemoteDisconnected.
@@ -232,6 +257,12 @@ def get_fasta_file(identifier, max_retries=3):
                 os.remove(tmp_path)
         if attempt < max_retries:
             time.sleep(wait)
+    if _ncbi_refused(last_error):
+        # NCBI is up but refusing (rate limit / overload). Treating this as a
+        # missing record would remove valid sequences: stop the run instead.
+        raise NCBIUnavailableError(
+            f"NCBI kept refusing requests for {identifier} ({last_error}) after {max_retries} "
+            f"attempts. Try again later, set NCBI_API_KEY, or use --local")
     raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts"
                        f" ({last_error})")
 
@@ -318,16 +349,31 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             # parameters set explicitly rather than relying on NCBI's defaults.
             # MEGABLAST is deliberately not sent. Limit results for speed.
             # Note: NCBI's server currently searches core_nt when asked for nt.
-            result_handle = NCBIWWW.qblast(
-                "blastn", "nt", dna_seq,
-                word_size=config.BLAST_WORD_SIZE,
-                nucl_reward=config.BLAST_MATCH_REWARD,
-                nucl_penalty=config.BLAST_MISMATCH_PENALTY,
-                gapcosts=config.BLAST_GAP_COSTS,
-                hitlist_size=config.BLAST_HITLIST_SIZE,
-                expect=max_evalue,
-                format_type="XML"
-            )
+            # NCBI may throttle (429) or be overloaded (5xx): retry with a
+            # long backoff, then stop the run rather than report "no hit".
+            for attempt in range(1, 4):
+                try:
+                    result_handle = NCBIWWW.qblast(
+                        "blastn", "nt", dna_seq,
+                        word_size=config.BLAST_WORD_SIZE,
+                        nucl_reward=config.BLAST_MATCH_REWARD,
+                        nucl_penalty=config.BLAST_MISMATCH_PENALTY,
+                        gapcosts=config.BLAST_GAP_COSTS,
+                        hitlist_size=config.BLAST_HITLIST_SIZE,
+                        expect=max_evalue,
+                        format_type="XML"
+                    )
+                    break
+                except Exception as e:
+                    if not _ncbi_refused(e):
+                        raise
+                    if attempt == 3:
+                        raise NCBIUnavailableError(
+                            f"NCBI BLAST kept refusing requests ({e}) after 3 attempts. "
+                            f"Try again later, or use --local") from e
+                    if verbose:
+                        print(f"    NCBI BLAST refused the request ({e}), retrying...")
+                    time.sleep(config.NCBI_BLAST_RETRY_WAIT * attempt)
         blast_records = NCBIXML.parse(result_handle)
         blast_record = next(blast_records)
 
@@ -395,7 +441,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             print(f"    No accurate BLAST hit found")
         return None, False
 
-    except LocalBlastError:
+    except RunAbortError:
         raise
     except Exception as e:
         if config.BLAST_LOCAL_DB:
@@ -524,8 +570,8 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
                 mapping[record.id] = new_accession
                 continue
 
-        except LocalBlastError:
-            raise  # broken local database: stop, don't drop the sequence
+        except RunAbortError:
+            raise  # broken local database or NCBI refusing: stop, don't drop the sequence
         except Exception as e:
             if verbose:
                 print(f"  Warning: Could not read fasta for {record.id}: {e}")
@@ -729,8 +775,8 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                                     print(f"    First difference at position {i+1}: Stockholm={a}, NCBI={b}")
                                     break
 
-            except LocalBlastError:
-                raise  # broken local database: stop, don't drop the sequence
+            except RunAbortError:
+                raise  # broken local database or NCBI refusing: stop, don't drop the sequence
             except Exception as e:
                 failure = 'not_found'
                 if verbose:
@@ -767,8 +813,8 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                         else:
                             if verbose:
                                 print(f"    BLAST hit {blast_result} found but sequence still does not match NCBI — removing")
-                    except LocalBlastError:
-                        raise  # broken local database: stop, don't drop the sequence
+                    except RunAbortError:
+                        raise  # broken local database or NCBI refusing: stop, don't drop the sequence
                     except Exception:
                         if verbose:
                             print(f"    Could not re-validate BLAST hit {blast_result} — removing")

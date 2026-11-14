@@ -81,6 +81,18 @@ NCBI_TIMEOUT = 60
 NCBI_TOOL = 'rfam-seed-qc'
 NCBI_EMAIL = None
 
+# Optional NCBI API key, read from the NCBI_API_KEY environment variable (never
+# store it here: the repository is public). Get one from your NCBI account
+# settings. With a key, NCBI E-utilities allow 10 requests/s per key instead of
+# 3 per IP, which matters on clusters where many users share one IP. Not used
+# for web BLAST (NCBI's BLAST service does not take E-utilities keys).
+NCBI_API_KEY = os.environ.get('NCBI_API_KEY', '').strip() or None
+NCBI_REQUEST_DELAY_WITH_KEY = 0.1
+
+# Seconds to wait before retrying a web BLAST request that NCBI refused
+# (429/5xx); multiplied by the attempt number (30 s, then 60 s).
+NCBI_BLAST_RETRY_WAIT = 30
+
 
 # =============================================================================
 # RNAcentral Request Parameters (for URS identifiers)

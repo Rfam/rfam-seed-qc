@@ -67,4 +67,5 @@ Configuration (scripts/config.py):
   - BLAST_HITLIST_SIZE = 250      (number of BLAST hits to retrieve)
   - BLAST_NUM_THREADS = CPUs available (threads for local blastn, --local only; --threads overrides)
   - CMSCAN_MAX_EVALUE = 1e-3      (maximum e-value for cmscan known-family warnings)
-  - NCBI_REQUEST_DELAY = 0.5      (delay between NCBI requests in seconds)
+  - NCBI_REQUEST_DELAY = 0.5      (delay between NCBI requests in seconds; 0.1 with an API key)
+  - NCBI_API_KEY                  (optional, from the NCBI_API_KEY environment variable; never stored in the repo)

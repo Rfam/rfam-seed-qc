@@ -43,6 +43,17 @@ Options:
 - `--blast-db <BLAST_LOCAL_DB>`: Local BLAST database to use with `--local`: a name found in `$BLASTDB` or a path (default: `nt`). A custom database must be built with `makeblastdb -parse_seqids`, so hits can be looked up by name
 - `--threads <N>`: Threads for local `blastn` with `--local` (default: the CPUs available to the job, capped by `SLURM_CPUS_PER_TASK`). Set it explicitly in containers limited by CPU quota (e.g. `docker --cpus`)
 
+#### NCBI rate limits
+
+NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, or rejects the API key, the run stops with an error rather than removing sequences it could not check. To avoid this:
+
+- Use `--local` (see below), which reads sequences from a local database; or
+- Set an NCBI API key (free, from your [NCBI account settings](https://www.ncbi.nlm.nih.gov/account/settings/)). The limit then applies to your key (10 requests per second) instead of the shared IP. The key is read from the environment and never written to reports:
+
+```bash
+export NCBI_API_KEY=your_key_here
+```
+
 #### Local BLAST
 
 NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Download the database once. In November 2026 `nt` was 1.1 TB to download and 1.3 TB on disk; check the current size first with `update_blastdb.pl --source ncbi --showall pretty | grep -w nt`:
@@ -211,6 +222,9 @@ Parameters can be adjusted in `scripts/config.py`:
 | `NCBI_TIMEOUT` | 60 | Timeout in seconds for one NCBI FASTA download |
 | `NCBI_TOOL` | `rfam-seed-qc` | Tool name sent to NCBI (BLAST and E-utilities) |
 | `NCBI_EMAIL` | `None` | Your email, sent to NCBI so they can contact you before blocking heavy use (recommended) |
+| `NCBI_API_KEY` | from the `NCBI_API_KEY` environment variable | Optional NCBI API key (see [NCBI rate limits](#ncbi-rate-limits)). Never put it in `config.py` |
+| `NCBI_REQUEST_DELAY_WITH_KEY` | 0.1 | Delay between NCBI requests in seconds when an API key is set |
+| `NCBI_BLAST_RETRY_WAIT` | 30 | Seconds before retrying a web BLAST request NCBI refused (×attempt) |
 | `RNACENTRAL_REQUEST_DELAY` | 2.0 | Delay between RNAcentral requests in seconds |
 | `RNACENTRAL_MAX_RETRIES` | 3 | Retries on HTTP 429/5xx/network errors |
 | `RNACENTRAL_TIMEOUT` | 30 | RNAcentral request timeout in seconds |
