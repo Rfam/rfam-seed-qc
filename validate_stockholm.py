@@ -321,7 +321,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # Fix missing coordinates if any
     if missing_coords:
         if verbose:
-            print(f"  Fixing {len(missing_coords)} missing coordinates (downloading from NCBI)...")
+            print(f"  Fixing {len(missing_coords)} missing coordinates (from {_seq_source()})...")
         id_mapping, coords_to_remove = fixable_errors.fix_missing_coordinates(filepath, verbose=verbose)
         to_remove.update(coords_to_remove)
         # Count sequences that got new coordinates (where key != value)
@@ -387,7 +387,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
 
     # Validate sequences against NCBI (with BLAST fallback)
     if verbose:
-        print(f"  Validating {len(processed_sequences)} sequence(s) against NCBI...")
+        print(f"  Validating {len(processed_sequences)} sequence(s) against {_seq_source()}...")
     # Collect unverified taxids for this file only (the list is module-level)
     fixable_errors.rnacentral.unverified_taxids.clear()
     invalid_seqs, not_found_seqs, mismatched_seqs, blast_fixed = fixable_errors.validate_sequences_against_ncbi(processed_sequences, verbose=verbose)
@@ -565,6 +565,13 @@ class TeeOutput:
 
     def getvalue(self):
         return self.buffer.getvalue()
+
+
+def _seq_source():
+    """Where sequences are fetched from, for progress messages."""
+    if config.BLAST_LOCAL_DB:
+        return f"local {os.path.basename(config.BLAST_LOCAL_DB)}, NCBI if missing"
+    return "NCBI"
 
 
 def check_local_blast(db):

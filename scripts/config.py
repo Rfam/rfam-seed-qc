@@ -33,8 +33,9 @@ BLAST_MISMATCH_PENALTY = -3
 BLAST_GAP_COSTS = "5 2"   # gap open, gap extend (affine)
 
 # Local BLAST database. Do not edit here: it is set at run time from
-# --local --blast-db BLAST_LOCAL_DB (default "nt"). None means BLAST uses
-# NCBI's web API.
+# --local --blast-db BLAST_LOCAL_DB (default "nt"). BLAST searches and
+# sequence lookups then use this database (NCBI only for accessions it
+# lacks). None means BLAST uses NCBI's web API and sequences come from NCBI.
 BLAST_LOCAL_DB = None
 
 # CPU threads for local blastn: the CPUs this process may use (on Linux this

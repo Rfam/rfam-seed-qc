@@ -38,19 +38,21 @@ Options:
   - `file`: Create a new file with `_corrected` suffix
   - `stdout`: Print corrected content to stdout
 - `--cm-db <path>`: Path to Rfam CM database for filtering sequences matching known Rfam families (optional)
-- `--local`: Run the BLAST fallback locally with BLAST+ (`blastn`) instead of NCBI's web API. Needs BLAST+ (included in the conda environment) and a local database; see [Local BLAST](#local-blast)
+- `--local`: Run BLAST and sequence lookups locally with BLAST+ (`blastn`, `blastdbcmd`) instead of NCBI's web services. Needs BLAST+ (included in the conda environment) and a local database; see [Local BLAST](#local-blast)
 - `--blast-db <BLAST_LOCAL_DB>`: Local BLAST database to use with `--local`: a name found in `$BLASTDB` or a path (default: `nt`)
 
 #### Local BLAST
 
-NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Download the database once (several TB: check the size first with `update_blastdb.pl --showall pretty | grep -w nt`):
+NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Download the database once. In November 2026 `nt` was 1.1 TB to download and 1.3 TB on disk; check the current size first with `update_blastdb.pl --source ncbi --showall pretty | grep -w nt`:
 
 ```bash
 export BLASTDB=/path/to/blastdb && mkdir -p $BLASTDB && cd $BLASTDB
-update_blastdb.pl --decompress --num_threads 4 nt
+update_blastdb.pl --source ncbi --decompress --num_threads 4 nt
 ```
 
-Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. Local mode only replaces BLAST: fetching and checking sequences still uses NCBI E-utilities.
+`update_blastdb.pl` downloads one volume at a time, so this can take several days: run it as a batch job, not on a login node. If it stops, run it again and it resumes.
+
+Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. In local mode, sequences are also read from the local database (with `blastdbcmd`), so there are no NCBI rate limits and jobs can run without internet access. Only accessions missing from the local database (`nt` omits some divisions, such as most WGS contigs) are fetched from NCBI, and RNAcentral IDs are still checked against RNAcentral.
 
 ### What is validated?
 
@@ -110,7 +112,9 @@ When sequences are missing coordinates (e.g., `NZ_CP038662.1` instead of `NZ_CP0
 2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries
 3. **Removal**: Sequences that cannot be resolved via either method are removed from the output
 
-**Requirements**: BioPython (`pip install biopython`)
+With `--local`, the lookup and the BLAST search use the local database instead (see [Local BLAST](#local-blast)).
+
+**Requirements**: BioPython (`pip install biopython`); BLAST+ for `--local`
 
 ### Overlap Detection and Removal
 
@@ -123,6 +127,8 @@ When using `--fix`, all sequences are validated against NCBI to ensure they matc
 1. **NCBI Validation**: Fetches the source sequence from NCBI and compares it against the Stockholm sequence at the given coordinates
 2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
 3. **Removal**: Sequences that fail both NCBI validation and BLAST (or whose BLAST hit does not exactly match NCBI) are removed from the output
+
+With `--local`, sequences are fetched from the local database, and from NCBI only when an accession is missing from it.
 
 ### RNAcentral Identifiers
 

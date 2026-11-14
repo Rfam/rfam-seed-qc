@@ -6,6 +6,7 @@ These errors can be automatically corrected.
 
 import io
 import os
+import random
 import sys
 import time
 import re
@@ -83,10 +84,39 @@ def _is_fasta_file(path):
         return False
 
 
+# Looks like an NCBI accession (e.g. NR_038927.2, AF265547, NZ_CP045771.1),
+# as opposed to a free-text name such as Homo_sapiens_chr12.
+_ACCESSION_RE = re.compile(r'^[A-Z0-9_]+(\.\d+)?$')
+
+
+def _fetch_local(identifier, fasta_file, fasta_folder):
+    """With --local, copy the record from the local BLAST database into the
+    FASTA cache. Returns True on success, False if the database lacks it."""
+    import tempfile
+    fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
+    try:
+        with os.fdopen(fd, 'wb') as out:
+            proc = subprocess.run(
+                ['blastdbcmd', '-db', config.BLAST_LOCAL_DB, '-entry', identifier,
+                 '-target_only', '-outfmt', '%f'],
+                stdout=out, stderr=subprocess.DEVNULL)
+        if proc.returncode == 0 and _is_fasta_file(tmp_path):
+            os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
+            return True
+        return False
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 def get_fasta_file(identifier, max_retries=3):
     """
     Download fasta file from NCBI if not already downloaded.
-    Retries on transient network failures.
+    Retries on transient network failures (longer waits when NCBI rate-limits).
+
+    With --local (config.BLAST_LOCAL_DB set), the record is read from the
+    local BLAST database first; NCBI is used only for real-looking accessions
+    the local database lacks.
 
     NCBI efetch answers an unknown identifier with HTTP 200 and an
     'Error: ...' body, so the download is checked to be real FASTA before it
@@ -116,6 +146,16 @@ def get_fasta_file(identifier, max_retries=3):
     if os.path.exists(fasta_file):
         os.remove(fasta_file)  # stale error reply or empty file from an earlier run
 
+    if config.BLAST_LOCAL_DB:
+        # --local: read the record from the local database; fall back to NCBI
+        # only for real-looking accessions the local database lacks (nt omits
+        # some divisions, e.g. most WGS contigs).
+        if _fetch_local(identifier, fasta_file, fasta_folder):
+            return fasta_file
+        if not _ACCESSION_RE.match(identifier):
+            raise AccessionNotFoundError(
+                f"{identifier} is not an accession and is not in the local database")
+
     from urllib.parse import urlencode
     params = {'db': 'nuccore', 'id': identifier, 'rettype': 'fasta', 'retmode': 'text',
               'tool': config.NCBI_TOOL}
@@ -128,6 +168,7 @@ def get_fasta_file(identifier, max_retries=3):
         time.sleep(config.NCBI_REQUEST_DELAY)
         fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
         os.close(fd)
+        wait = 2 * attempt  # backoff before retry
         try:
             ok = False
             try:
@@ -138,6 +179,13 @@ def get_fasta_file(identifier, max_retries=3):
             except urllib.error.HTTPError as e:
                 # Keep the body: NCBI explains errors in it
                 last_error = e
+                if e.code == 429 or e.code >= 500:
+                    # Rate-limited or overloaded (common from shared cluster
+                    # IPs): honour Retry-After, else back off for longer.
+                    try:
+                        wait = float(e.headers.get('Retry-After'))
+                    except (TypeError, ValueError, AttributeError):
+                        wait = 10 * attempt + random.uniform(0, 3)
                 try:
                     with open(tmp_path, 'wb') as out:
                         out.write(e.read())
@@ -162,7 +210,7 @@ def get_fasta_file(identifier, max_retries=3):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         if attempt < max_retries:
-            time.sleep(2 * attempt)  # backoff before retry
+            time.sleep(wait)
     raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts"
                        f" ({last_error})")
 
