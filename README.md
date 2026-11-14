@@ -249,6 +249,9 @@ python3 validate_stockholm.py --fix --output-mode stdout file.so
 
 # Fix with known Rfam family filtering
 python3 validate_stockholm.py -v --fix --cm-db Rfam.cm file.sto
+
+# Fix with local BLAST against nt, writing file_corrected.sto and file_Report.txt
+python3 validate_stockholm.py -v --fix --output-mode file --local --blast-db /path/to/blastdb/nt --threads 16 file.sto
 ```
 
 ### Continuous Integration
