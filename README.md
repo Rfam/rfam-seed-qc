@@ -284,4 +284,4 @@ When releasing a new version, update `VERSION`, `version` and `date-released` in
 
 ## Contact us
 
-If you have any questions or feedback, feel free to submit a GitHub issue or [email us](https://docs.rfam.org/en/latest/).
+If you have any questions or feedback, feel free to submit a GitHub issue or [email us](https://docs.rfam.org/contact-us.html).
