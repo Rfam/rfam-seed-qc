@@ -349,10 +349,17 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                     accession = None
 
                     # Format: "gi|xxx|ref|NZ_CP045771.1|" or "gi|xxx|gb|CP041614.1|"
-                    # (web API), or "ref|NZ_CP045771.1|" (local BLAST+ databases)
-                    accession_match = re.search(r'(?:^|\|)(ref|gb|emb|dbj)\|([^|]+)\|', hit_def)
+                    # (web API), or "ref|NZ_CP045771.1|" (local BLAST+ databases);
+                    # tpg/tpe/tpd are third-party annotation records in nt
+                    accession_match = re.search(r'(?:^|\|)(ref|gb|emb|dbj|tpg|tpe|tpd)\|([^|]+)\|', hit_def)
+                    hit_id = alignment.hit_id
                     if accession_match:
                         accession = accession_match.group(2).rstrip('|')
+                    elif config.BLAST_LOCAL_DB and (hit_id.startswith('lcl|') or '|' not in hit_id):
+                        # Custom database built with makeblastdb -parse_seqids:
+                        # the hit id is the record's own name (Homo_sapiens_chr12),
+                        # which blastdbcmd can retrieve for validation
+                        accession = hit_id[4:] if hit_id.startswith('lcl|') else hit_id
                     else:
                         # Try format: "NZ_CP045771.1 description"
                         accession_match = re.search(r'^([A-Z]{1,2}_?[A-Z]*\d+\.\d+)', alignment.hit_id)

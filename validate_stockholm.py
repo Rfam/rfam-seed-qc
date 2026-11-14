@@ -602,6 +602,16 @@ def check_local_blast(db):
     if info.returncode != 0:
         sys.exit(f"ERROR: BLAST database '{db}' not found or unreadable "
                  f"(BLASTDB={os.environ.get('BLASTDB', 'unset')}): {info.stderr.strip()}")
+    # Hits must be retrievable by name for validation. A database built
+    # without makeblastdb -parse_seqids only has record numbers (BL_ORD_ID).
+    first = subprocess.Popen(['blastdbcmd', '-db', db, '-entry', 'all', '-outfmt', '%a'],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    first_id = first.stdout.readline().strip()
+    first.kill()
+    first.wait()
+    if first_id.startswith('BL_ORD_ID'):
+        sys.exit(f"ERROR: BLAST database '{db}' was built without sequence IDs, so hits "
+                 f"cannot be validated. Rebuild it with: makeblastdb -parse_seqids ...")
     lines = [f"  Local BLAST db: {line.strip()}" for line in info.stdout.splitlines()
              if line.strip().startswith(('Database:', 'Date:')) or 'sequences;' in line]
     lines.append(f"  Local BLAST threads: {config.BLAST_NUM_THREADS}")
