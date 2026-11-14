@@ -234,14 +234,20 @@ def get_fasta_file(identifier, max_retries=3):
 
 
 def get_accession_version(fasta_file):
-    """Get version from downloaded fasta file header."""
+    """Get the version suffix (e.g. '.2') from the FASTA header.
+
+    Returns '' when the header has no version, e.g. a record in a custom
+    local BLAST database named Homo_sapiens_chr12: inventing '.1' would
+    produce a name that exists nowhere and fails validation. NCBI headers
+    are always versioned.
+    """
     with open(fasta_file, 'r') as f:
         for line in f:
             if line.startswith('>'):
                 name = line.split()[0][1:]  # Remove '>'
-                if '.' in name:
-                    return '.' + name.split('.')[1]
-    return '.1'
+                m = re.search(r'(\.\d+)$', name)
+                return m.group(1) if m else ''
+    return ''
 
 
 def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None):
