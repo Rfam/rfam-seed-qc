@@ -19,8 +19,10 @@ BLAST_MIN_COVERAGE = 90
 # Maximum e-value to accept a BLAST hit
 BLAST_MAX_EVALUE = 1e-10
 
-# Number of BLAST hits to retrieve (top N hits)
-BLAST_HITLIST_SIZE = 5
+# Number of BLAST hits to retrieve (top N hits). BLAST also uses this while
+# searching (-max_target_seqs), and small values can miss the best hit, so
+# keep it generous: nt holds many near-identical copies of a sequence.
+BLAST_HITLIST_SIZE = 250
 
 # BLAST task: standard blastn (NOT megablast), with its scoring parameters
 # stated explicitly so results do not change silently if NCBI changes its

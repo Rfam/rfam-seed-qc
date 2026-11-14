@@ -109,7 +109,7 @@ The script can detect and remove duplicate sequences using the `--fix` flag. Dup
 When sequences are missing coordinates (e.g., `NZ_CP038662.1` instead of `NZ_CP038662.1/4723652-4723704`), the `--fix` flag will:
 
 1. **NCBI Direct Lookup**: Download the FASTA sequence from NCBI and find coordinates by matching the alignment sequence
-2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries
+2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries. Among the hits that pass, an exact full-length match is preferred, since only exact matches pass the final check
 3. **Removal**: Sequences that cannot be resolved via either method are removed from the output
 
 With `--local`, the lookup and the BLAST search use the local database instead (see [Local BLAST](#local-blast)).
@@ -199,7 +199,7 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_MIN_IDENTITY` | 95 | Minimum identity % for BLAST hits |
 | `BLAST_MIN_COVERAGE` | 90 | Minimum coverage % for BLAST hits |
 | `BLAST_MAX_EVALUE` | 1e-10 | Maximum e-value for BLAST hits |
-| `BLAST_HITLIST_SIZE` | 5 | Number of BLAST hits to retrieve |
+| `BLAST_HITLIST_SIZE` | 250 | Number of BLAST hits to retrieve. Kept large because BLAST uses it while searching, and small values can miss the best hit |
 | `BLAST_WORD_SIZE` | 11 | blastn word size |
 | `BLAST_MATCH_REWARD` / `BLAST_MISMATCH_PENALTY` | 2 / -3 | blastn match/mismatch scores |
 | `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |

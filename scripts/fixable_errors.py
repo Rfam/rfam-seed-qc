@@ -304,6 +304,11 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
         blast_records = NCBIXML.parse(result_handle)
         blast_record = next(blast_records)
 
+        # Pick the first acceptable hit in BLAST's order, but prefer an exact
+        # full-length match (all bases identical, no gaps, whole query) if any
+        # hit has one: only exact matches survive the later NCBI/MD5 check, and
+        # with many hits returned the exact one is not always listed first.
+        first_ok = None
         for alignment in blast_record.alignments:
             for hsp in alignment.hsps:
                 # Calculate identity and coverage. BLAST query coordinates are
@@ -334,11 +339,23 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                         coords = f"{hsp.sbjct_start}-{hsp.sbjct_end}"
 
                         new_accession = f"{accession}/{coords}"
+                        hit = (new_accession, identity, coverage, hsp.expect)
 
-                        if verbose:
-                            print(f"    BLAST hit: {new_accession} (identity={identity:.1f}%, coverage={coverage:.1f}%, e={hsp.expect:.2e})")
+                        exact = (hsp.identities == len(dna_seq) == hsp.align_length)
+                        if exact:
+                            first_ok = hit
+                            break
+                        if first_ok is None:
+                            first_ok = hit
+            else:
+                continue
+            break  # exact match found
 
-                        return new_accession, True
+        if first_ok:
+            new_accession, identity, coverage, evalue = first_ok
+            if verbose:
+                print(f"    BLAST hit: {new_accession} (identity={identity:.1f}%, coverage={coverage:.1f}%, e={evalue:.2e})")
+            return new_accession, True
 
         if verbose:
             print(f"    No accurate BLAST hit found")
