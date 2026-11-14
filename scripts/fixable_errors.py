@@ -117,6 +117,8 @@ def _fetch_local(identifier, fasta_file, fasta_folder):
     sequences, so the run stops instead.
     """
     import tempfile
+    if ',' in identifier:
+        return False  # blastdbcmd -entry would read a comma as a list of entries
     fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
     try:
         with os.fdopen(fd, 'wb') as out:
@@ -220,7 +222,7 @@ def get_fasta_file(identifier, max_retries=3):
                     # Rate-limited or overloaded (common from shared cluster
                     # IPs): honour Retry-After, else back off for longer.
                     try:
-                        wait = float(e.headers.get('Retry-After'))
+                        wait = min(float(e.headers.get('Retry-After')), 120)
                     except (TypeError, ValueError, AttributeError):
                         wait = 10 * attempt + random.uniform(0, 3)
                 try:
