@@ -1,0 +1,33 @@
+rfam-seed-qc v1.3.0
+Date: 2026-11-15 00:40:43
+File: xtr_starting_alignment.sto
+------------------------------------------------------------
+
+  Scanning against known Rfam families (models/15.1/Rfam.cm), using GA thresholds...
+    20% scanned (1/4 sequences)
+    40% scanned (2/4 sequences)
+    60% scanned (3/4 sequences)
+    80% scanned (4/4 sequences)
+    100% scanned (4/4 sequences)
+  URS00008F5443_2703794/1-75: matches RF00005 (tRNA), E-value=1.9e-07 -- WARNING
+  1 sequence(s) match known Rfam families (see warnings above).
+  Validating 4 sequence(s) against NCBI...
+  [1/4 25.0%] URS0000572555_1268238/1-81
+  URS0000572555_1268238/1-81: validated OK (RNAcentral)
+  [2/4 50.0%] URS0000CB3E56_571/1-75
+  URS0000CB3E56_571/1-75: validated OK (RNAcentral)
+  [3/4 75.0%] URS00008F5443_2703794/1-75
+  URS00008F5443_2703794/1-75: validated OK (RNAcentral)
+  [4/4 100.0%] URS0000DC8BA0_158822/1-74
+  URS0000DC8BA0_158822/1-74: validated OK (RNAcentral)
+
+  Pairwise identity (avg 88.2%):
+    URS0000DC8BA0_158822/1-74                85.5%
+    URS0000572555_1268238/1-81               88.8%
+    URS00008F5443_2703794/1-75               89.2%
+    URS0000CB3E56_571/1-75                   89.5%
+
+  Gap minimization (esl-reformat --mingap): removed 0 all-gap column(s), alignment now 81 columns wide
+✓ Fixed 0 issue(s) in alignments/xtr_starting_alignment.sto
+  Corrected file saved to: alignments/xtr_starting_alignment_corrected.sto
+✓ alignments/xtr_starting_alignment_corrected.sto: Valid Stockholm file
