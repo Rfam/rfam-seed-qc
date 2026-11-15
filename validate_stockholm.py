@@ -654,6 +654,11 @@ def main():
         help='Print detailed validation information'
     )
     parser_arg.add_argument(
+        '--version',
+        action='version', version=f'rfam-seed-qc {tool_version()}',
+        help='Show the version and exit'
+    )
+    parser_arg.add_argument(
         '--fix',
         action='store_true',
         help='Attempt to fix fixable errors'

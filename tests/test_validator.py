@@ -84,6 +84,13 @@ def test_every_fixture_is_tested():
     assert on_disk == listed
 
 
+def test_version():
+    """--version prints the version from the VERSION file and exits, with no file needed."""
+    code, output = run_validator('--version')
+    assert code == 0, output
+    assert output.strip() == f"rfam-seed-qc {(REPO / 'VERSION').read_text().strip()}"
+
+
 def test_several_files_fail_if_one_is_invalid():
     code, output = run_validator(FIXTURES / 'valid/valid.sto',
                                  FIXTURES / 'invalid/missing_terminator.sto')
