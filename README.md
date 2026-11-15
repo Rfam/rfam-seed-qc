@@ -43,7 +43,7 @@ Options:
 - `--output-mode {stdout,file}`: Output mode for fixed files (default: file)
   - `file`: Create a new file with `_corrected` suffix, plus a `_Report.txt` log of the run (starting with the tool version)
   - `stdout`: Print corrected content to stdout
-  - The corrected alignment records the tool and version that produced it in a `#=GF CC   Corrected by rfam-seed-qc vX.Y.Z (...)` line
+  - The corrected alignment records the tool and version that produced it in a `#=GF CC   Processed by rfam-seed-qc vX.Y.Z (...)` line
 - `--cm-db <path>`: Path to Rfam CM database for filtering sequences matching known Rfam families (optional)
 - `--local`: Run BLAST and sequence lookups locally with BLAST+ (`blastn`, `blastdbcmd`) instead of NCBI's web services. Needs BLAST+ (included in the conda environment) and a local database; see [Local BLAST](#local-blast)
 - `--blast-db <BLAST_LOCAL_DB>`: Local BLAST database to use with `--local`: a name found in `$BLASTDB` or a path (default: `nt`). A custom database must be built with `makeblastdb -parse_seqids`, so hits can be looked up by name

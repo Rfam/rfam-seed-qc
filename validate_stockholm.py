@@ -28,7 +28,9 @@ from scripts.config import CMSCAN_MAX_EVALUE
 
 
 TOOL_URL = 'https://github.com/Rfam/rfam-seed-qc'
-PROVENANCE_PREFIX = 'Corrected by rfam-seed-qc'
+# Wording that is true whether or not --fix changed anything; the report says
+# what changed.
+PROVENANCE_PREFIX = 'Processed by rfam-seed-qc'
 
 
 def tool_version():

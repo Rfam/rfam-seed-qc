@@ -112,7 +112,7 @@ def test_fix_removes_duplicate_and_overlap(tmp_path):
     names = [line.split()[0] for line in text.splitlines()
              if line.strip() and not line.startswith('#') and line.strip() != '//']
     assert names == ['AC104446.2/142006-142080', 'AAYZ01025109.1/988-1063'], text
-    assert 'Corrected by rfam-seed-qc v' in text, text
+    assert 'Processed by rfam-seed-qc v' in text, text
     assert text.startswith('# STOCKHOLM 1.0') and text.rstrip().endswith('//'), text
 
     # The corrected file must itself validate cleanly
