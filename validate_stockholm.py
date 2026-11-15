@@ -257,7 +257,6 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
                 family_acc = fields[1]
                 seq_name = fields[2]
                 evalue_str = fields[15]
-                score = fields[14]
 
                 if seq_name in seen:
                     continue
@@ -766,7 +765,7 @@ def main():
                 print(f"  ⚠ Warning: {warning}")
 
             if not args.fix:
-                print(f"  Tip: Use --fix to automatically correct these issues")
+                print("  Tip: Use --fix to automatically correct these issues")
 
         else:
             print(f"✗ {filepath}: INVALID")
@@ -803,7 +802,7 @@ def main():
         print(f"\nAll {len(args.files)} file(s) passed validation.")
         return 0
     else:
-        print(f"\nValidation failed for one or more files.")
+        print("\nValidation failed for one or more files.")
         return 1
 
 

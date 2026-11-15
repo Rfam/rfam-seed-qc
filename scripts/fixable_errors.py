@@ -440,7 +440,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             return new_accession, True
 
         if verbose:
-            print(f"    No accurate BLAST hit found")
+            print("    No accurate BLAST hit found")
         return None, False
 
     except RunAbortError:
