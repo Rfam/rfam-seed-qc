@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # Write Python output to the log immediately instead of in 8 KB chunks,
+      # so progress is visible while long NCBI/RNAcentral steps run
+      PYTHONUNBUFFERED: "1"
 
     steps:
       - name: Checkout code
