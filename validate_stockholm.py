@@ -341,7 +341,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         num_coords_fixed = len([k for k, v in id_mapping.items() if k != v])
         num_fixes += num_coords_fixed
         if verbose and to_remove:
-            print(f"  {len(to_remove)} sequence(s) will be removed (no accurate match)")
+            print(f"  {len(to_remove)} sequence(s) will be removed (no exact match)")
 
     # Use parser output for all line collections (handles interleaved format)
     header_lines = parsed['header_lines']

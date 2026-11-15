@@ -360,7 +360,8 @@ def get_accession_version(fasta_file):
     return ''
 
 
-def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None):
+def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None,
+                 exact_only=False):
     """
     Perform BLAST search for a sequence that couldn't be found directly.
 
@@ -370,6 +371,9 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
         min_identity: Minimum identity percentage (default from config)
         min_coverage: Minimum query coverage percentage (default from config)
         max_evalue: Maximum e-value to accept (default from config)
+        exact_only: Accept only an exact full-length match (all bases
+            identical, no gaps, whole query). The best inexact hit is still
+            reported, but not returned.
 
     Returns:
         tuple: (accession_with_coords, is_accurate) or (None, False) if no good hit
@@ -458,6 +462,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
         # hit has one: only exact matches survive the later NCBI/MD5 check, and
         # with many hits returned the exact one is not always listed first.
         first_ok = None
+        exact_found = False
         for alignment in blast_record.alignments:
             for hsp in alignment.hsps:
                 # Calculate identity and coverage. BLAST query coordinates are
@@ -500,6 +505,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                         exact = (hsp.identities == len(dna_seq) == hsp.align_length)
                         if exact:
                             first_ok = hit
+                            exact_found = True
                             break
                         if first_ok is None:
                             first_ok = hit
@@ -507,14 +513,20 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                 continue
             break  # exact match found
 
-        if first_ok:
+        if first_ok and (exact_found or not exact_only):
             new_accession, identity, coverage, evalue = first_ok
             if verbose:
                 print(f"    BLAST hit: {new_accession} (identity={identity:.1f}%, coverage={coverage:.1f}%, e={evalue:.2e})")
             return new_accession, True
 
         if verbose:
-            print("    No accurate BLAST hit found")
+            if first_ok:
+                # exact_only: report the near miss so curators can see it
+                new_accession, identity, coverage, evalue = first_ok
+                print(f"    No exact BLAST match (best: {new_accession}, identity={identity:.1f}%, "
+                      f"coverage={coverage:.1f}%)")
+            else:
+                print("    No accurate BLAST hit found")
         return None, False
 
     except RunAbortError:
@@ -657,7 +669,10 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
             if verbose:
                 print(f"  {record.id} not found directly, trying BLAST...")
 
-            blast_result, is_accurate = blast_search(ungapped, verbose=verbose)
+            # Only an exact match can pass the final validation (Rfam's MD5
+            # check). Accepting a near miss here would rename the sequence,
+            # fail validation, and repeat this same BLAST search for nothing.
+            blast_result, is_accurate = blast_search(ungapped, verbose=verbose, exact_only=True)
 
             if is_accurate and blast_result:
                 if verbose:
@@ -667,7 +682,7 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
 
         # Neither direct lookup nor BLAST worked - mark for removal
         if verbose:
-            print(f"  {record.id} will be REMOVED (no accurate match found)")
+            print(f"  {record.id} will be REMOVED (no exact match found)")
         to_remove.add(record.id)
 
     if show_bar:
