@@ -1,5 +1,6 @@
 # rfam-seed-qc
 
+[![Tests](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml/badge.svg)](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml)
 [![Release](https://img.shields.io/github/v/release/Rfam/rfam-seed-qc)](https://github.com/Rfam/rfam-seed-qc/releases)
 [![License](https://img.shields.io/github/license/Rfam/rfam-seed-qc)](LICENSE)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.8-blue)
@@ -136,7 +137,7 @@ With `--local`, the lookup and the BLAST search use the local database instead (
 
 ### Overlap Detection and Removal
 
-Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, overlapping sequences are removed using greedy interval scheduling to keep the maximum number of non-overlapping sequences.
+Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, the overlapping copies are first checked against NCBI (or the local database, or RNAcentral), without BLAST, and copies that match are kept before those that don't. Then overlapping sequences are removed, keeping the lower start coordinate among equally good copies. This keeps the correct copy when a shifted, wrong copy of the same region is also in the alignment.
 
 ### Sequence Validation
 
@@ -265,7 +266,7 @@ python3 validate_stockholm.py -v --fix --output-mode file --local --blast-db /pa
 
 **Tests** (`tests.yml`): on every push and pull request, except pushes that only change `alignments/`, the validator is run on the small files in `tests/fixtures/`:
 - `valid/`, `invalid/`, `fixable/`: validation only, offline. Each file checks one case, such as a missing `//` or a duplicate sequence, for the expected exit code and message.
-- `fix/`: one `--fix` run on two real sequences plus a duplicate and an overlap. It looks up two sequences at NCBI (no BLAST search), so it takes seconds.
+- `fix/`: one `--fix` run on two real sequences plus a duplicate and a shifted, wrong overlapping copy, which must be the one removed. It looks up two sequences at NCBI (no BLAST search), so it takes seconds.
 
 Run the tests locally with `uv run pytest`, or `uv run pytest -m "not network"` to skip the NCBI test. When adding a fixture to `valid/`, `invalid/` or `fixable/`, add its expected result to `tests/test_validator.py`; a test fails if a fixture is not listed.
 

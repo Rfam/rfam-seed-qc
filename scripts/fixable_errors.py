@@ -623,18 +623,21 @@ def check_overlap(start1, end1, start2, end2):
     return a1 <= b2 and b1 <= a2
 
 
-def find_overlapping_sequences(sequence_entries):
+def find_overlapping_sequences(sequence_entries, preferred=None):
     """
     Find sequences from the same accession that overlap.
 
     Args:
         sequence_entries: List of (seq_name, seq_data) tuples
+        preferred: Optional set of names to keep first when they overlap
+            others (e.g. those that match NCBI). Without it, or among equally
+            preferred sequences, the one with the lower start is kept.
 
     Returns:
         set: Sequence names to remove due to overlaps
     """
-    import random
     from collections import defaultdict
+    preferred = preferred or set()
 
     # Group sequences by accession
     accession_groups = defaultdict(list)
@@ -654,9 +657,9 @@ def find_overlapping_sequences(sequence_entries):
         if len(sequences) < 2:
             continue
 
-        # Use greedy interval scheduling to keep maximum non-overlapping sequences
-        # Sort by end position (using min of start/end for reverse strand)
-        sorted_seqs = sorted(sequences, key=lambda x: min(x[1], x[2]))
+        # Greedy: keep preferred sequences first, then by lower start (using
+        # min of start/end for reverse strand); drop any that overlap a kept one
+        sorted_seqs = sorted(sequences, key=lambda x: (x[0] not in preferred, min(x[1], x[2])))
 
         kept = []
         for seq_name, start, end, seq_data in sorted_seqs:

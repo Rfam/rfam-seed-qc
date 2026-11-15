@@ -388,9 +388,21 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
 
     num_fixes += num_duplicates
 
-    # Check for overlapping sequences and remove them
+    # Check for overlapping sequences and remove them. When copies of an
+    # accession overlap, keep one that matches its source (NCBI, local nt or
+    # RNAcentral): check those copies first, without BLAST.
     overlapping = fixable_errors.find_overlapping_sequences(processed_sequences)
     if overlapping:
+        overlap_accessions = {fixable_errors.parse_sequence_identifier(name)[0] for name in overlapping}
+        candidates = [(name, seq) for name, seq in processed_sequences
+                      if fixable_errors.parse_sequence_identifier(name)[0] in overlap_accessions]
+        if verbose:
+            print(f"  Checking {len(candidates)} sequence(s) with overlapping coordinates "
+                  f"against {_seq_source()} to choose which to keep...")
+        failed = fixable_errors.validate_sequences_against_ncbi(
+            candidates, verbose=False, use_blast_fallback=False)[0]
+        matching = {name for name, _ in candidates if name not in failed}
+        overlapping = fixable_errors.find_overlapping_sequences(processed_sequences, preferred=matching)
         if verbose:
             print(f"  Found {len(overlapping)} overlapping sequence(s) to remove")
         # Filter out overlapping sequences

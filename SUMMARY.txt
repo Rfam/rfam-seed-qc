@@ -23,7 +23,7 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
       database, and NCBI is used only for accessions it lacks.
     - Mark for removal: Sequences that fail both methods
   4. Remove duplicates - Remove sequences with identical accession, coordinates, and sequence data
-  5. Remove overlapping sequences - For sequences from the same accession that overlap by >=1 bp, use greedy interval scheduling to keep maximum non-overlapping set
+  5. Remove overlapping sequences - For sequences from the same accession that overlap by >=1 bp, keep copies that match NCBI (checked without BLAST) first, then the lower start coordinate
   6. Validate against NCBI (with BLAST fallback) - For all remaining sequences:
     - Fetch FASTA from NCBI using accession (with --local: from the local database, NCBI only if missing)
     - Extract subsequence at given coordinates

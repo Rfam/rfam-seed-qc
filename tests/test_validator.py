@@ -87,8 +87,10 @@ def test_several_files_fail_if_one_is_invalid():
 def test_fix_removes_duplicate_and_overlap(tmp_path):
     """--fix on two real sequences plus a duplicate and an overlapping copy.
 
-    Both real sequences match NCBI, so no BLAST search runs. The overlapping
-    copy starts later, so it is the one removed.
+    The overlapping copy is shifted 5 nt, so it does not match NCBI. It starts
+    earlier than the real one, so it would be kept if overlaps were resolved
+    by position alone: the real one, which matches NCBI, must be kept instead.
+    Only the two real sequences are validated, so no BLAST search runs.
     """
     src = FIXTURES / 'fix/duplicate_and_overlap.sto'
     shutil.copy(src, tmp_path / src.name)   # outputs go next to the input
@@ -97,6 +99,7 @@ def test_fix_removes_duplicate_and_overlap(tmp_path):
     assert code == 0, output
     assert 'Removed 1 duplicate sequence(s)' in output, output
     assert 'Found 1 overlapping sequence(s) to remove' in output, output
+    assert 'AC104446.2/142001-142075' not in output.split('Found 1 overlapping')[1], output
     assert 'AC104446.2/142006-142080: validated OK' in output, output
     assert 'AAYZ01025109.1/988-1063: validated OK' in output, output
     assert 'Running BLAST search' not in output, output
