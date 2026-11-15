@@ -52,7 +52,7 @@ Options:
 
 #### NCBI rate limits
 
-NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, or rejects the API key, the run stops with an error rather than removing sequences it could not check. To avoid this:
+NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, rejects the API key, or cannot be reached at all (no network, DNS or firewall problems), the run stops with an error rather than removing sequences it could not check. The same applies when RNAcentral cannot be reached. To avoid this:
 
 - Use `--local` (see below), which reads sequences from a local database; or
 - Set an NCBI API key (free, from your [NCBI account settings](https://www.ncbi.nlm.nih.gov/account/settings/)). The limit then applies to your key (10 requests per second) instead of the shared IP. The key is read from the environment and never written to reports:
@@ -82,7 +82,7 @@ update_blastdb.pl --source ncbi --decompress --num_threads 4 nt
 
 `update_blastdb.pl` downloads one volume at a time, so this can take several days: run it as a batch job, not on a login node. If it stops, run it again and it resumes.
 
-Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. In local mode, sequences are also read from the local database (with `blastdbcmd`), so there are no NCBI rate limits and jobs can run without internet access. Only accessions missing from the local database (`nt` omits some divisions, such as most WGS contigs) are fetched from NCBI, and RNAcentral IDs are still checked against RNAcentral.
+Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. In local mode, sequences are also read from the local database (with `blastdbcmd`), so there are no NCBI rate limits and jobs can run without internet access. Only accessions missing from the local database (`nt` omits some divisions, such as most WGS contigs) are fetched from NCBI, and RNAcentral IDs are still checked against RNAcentral. If one of those is needed and the node has no internet access, the run stops with an error rather than removing the sequence.
 
 ### What is validated?
 

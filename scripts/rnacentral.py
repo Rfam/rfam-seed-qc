@@ -173,15 +173,13 @@ def validate_sequence(accession, start, end, stockholm_seq, verbose=False):
 
     Returns:
         tuple (ok: bool, failure: None | 'not_found' | 'mismatch')
+    Raises:
+        RNAcentralError if RNAcentral cannot be reached or keeps failing: that
+        says nothing about the sequence, so the caller must not remove it.
     """
     urs, taxid = split_rnacentral_id(accession)
 
-    try:
-        entry = fetch_entry(urs)
-    except RNAcentralError as e:
-        if verbose:
-            print(f"    RNAcentral lookup failed for {urs}: {e}")
-        return False, 'not_found'
+    entry = fetch_entry(urs)
 
     if entry is None:
         if verbose:

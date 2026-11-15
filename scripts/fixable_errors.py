@@ -109,10 +109,25 @@ def _cache_store(tmp_path, fasta_file):
         raise _cache_error(e, os.path.dirname(fasta_file)) from e
 
 
+class RNAcentralUnavailableError(RunAbortError):
+    """RNAcentral could not be reached or kept failing (not a 404)."""
+
+
 def _ncbi_refused(e):
     """True for HTTP errors that mean 'try later' (rate limit, server trouble)."""
     import urllib.error
     return isinstance(e, urllib.error.HTTPError) and (e.code == 429 or e.code >= 500)
+
+
+def _is_network_error(e):
+    """True if the server could not be reached at all (no connection, DNS
+    failure, timeout, dropped connection). An HTTP error status is not one:
+    the server answered."""
+    import http.client
+    import urllib.error
+    if isinstance(e, urllib.error.HTTPError):
+        return False
+    return isinstance(e, (OSError, http.client.HTTPException))
 
 
 def parse_sequence_identifier(seq_name):
@@ -339,6 +354,14 @@ def get_fasta_file(identifier, max_retries=3):
         raise NCBIUnavailableError(
             f"NCBI kept refusing requests for {identifier} ({last_error}) after {max_retries} "
             f"attempts. Try again later, set NCBI_API_KEY, or use --local")
+    if _is_network_error(last_error):
+        # NCBI could not be reached at all (offline node, DNS, firewall,
+        # timeouts). That says nothing about the sequence: treating it as
+        # "not found" would remove every sequence in the file.
+        where = " (it is not in the local database)" if config.BLAST_LOCAL_DB else ""
+        raise NCBIUnavailableError(
+            f"Could not reach NCBI to fetch {identifier}{where} ({last_error}) after "
+            f"{max_retries} attempts. Check the network connection and try again")
     raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts"
                        f" ({last_error})")
 
@@ -445,14 +468,14 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                     )
                     break
                 except Exception as e:
-                    if not _ncbi_refused(e):
+                    if not (_ncbi_refused(e) or _is_network_error(e)):
                         raise
                     if attempt == 3:
                         raise NCBIUnavailableError(
-                            f"NCBI BLAST kept refusing requests ({e}) after 3 attempts. "
+                            f"NCBI BLAST kept refusing or failing requests ({e}) after 3 attempts. "
                             f"Try again later, or use --local") from e
                     if verbose:
-                        print(f"    NCBI BLAST refused the request ({e}), retrying...")
+                        print(f"    NCBI BLAST request failed ({e}), retrying...")
                     time.sleep(config.NCBI_BLAST_RETRY_WAIT * attempt)
         blast_records = NCBIXML.parse(result_handle)
         blast_record = next(blast_records)
@@ -537,6 +560,12 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             # gets here; any exception (blastn missing, unreadable output) is
             # a failure, and must not be mistaken for "no hit".
             raise LocalBlastError(f"local BLAST failed: {type(e).__name__}: {e}") from e
+        if _is_network_error(e):
+            # Web BLAST could not reach NCBI: not "no hit", so stop rather
+            # than remove the sequence
+            raise NCBIUnavailableError(
+                f"Could not reach NCBI BLAST ({e}). Check the network connection and "
+                f"try again, or use --local") from e
         if verbose:
             print(f"    BLAST search failed: {e}")
         return None, False
@@ -573,13 +602,20 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
     Returns:
         tuple: (id_mapping dict, sequences_to_remove set)
     """
-    from Bio import AlignIO, SeqIO
+    from types import SimpleNamespace
+    from Bio import SeqIO
     from Bio.Seq import Seq
+    from scripts import parser
 
     mapping = {}
     to_remove = set()
 
-    align = AlignIO.read(filepath, 'stockholm')
+    # Read rows with the validator's own parser, not Biopython's AlignIO, which
+    # rejects files the validator accepts (a duplicate row, an SS_cons of the
+    # wrong length) and would crash the run instead of fixing them.
+    with open(filepath) as f:
+        entries = parser.parse_stockholm_file(f.readlines())['sequence_entries']
+    align = [SimpleNamespace(id=name, seq=seq) for name, seq in entries]
 
     # Records that already carry coordinates need no lookup, so they are settled
     # up front and left out of the progress total.
@@ -612,9 +648,8 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
             try:
                 new_accession = rnacentral.find_coordinates(record.id, ungapped)
             except rnacentral.RNAcentralError as e:
-                new_accession = None
-                if verbose:
-                    print(f"  Warning: RNAcentral lookup failed for {record.id}: {e}")
+                # RNAcentral unreachable: not a reason to drop the sequence
+                raise RNAcentralUnavailableError(f"{e}. Try again later") from e
             if new_accession:
                 if verbose:
                     print(f"  {record.id} -> {new_accession} (RNAcentral)")
@@ -829,8 +864,11 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
         ncbi_ok = False
         if rnacentral.is_rnacentral_id(accession):
             # RNAcentral id: validate against RNAcentral instead of NCBI
-            ncbi_ok, failure = rnacentral.validate_sequence(
-                accession, start, end, stockholm_seq, verbose=verbose)
+            try:
+                ncbi_ok, failure = rnacentral.validate_sequence(
+                    accession, start, end, stockholm_seq, verbose=verbose)
+            except rnacentral.RNAcentralError as e:
+                raise RNAcentralUnavailableError(f"{e}. Try again later") from e
             if verbose:
                 print(f"  {seq_name}: " + ("validated OK (RNAcentral)" if ncbi_ok
                                           else f"RNAcentral validation failed ({failure})"))
