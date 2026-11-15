@@ -11,6 +11,7 @@ It can automatically fix certain errors like duplicate sequences.
 import warnings as stdlib_warnings
 stdlib_warnings.filterwarnings("ignore", module="Bio")
 
+import os
 import sys
 import io
 import shutil
@@ -22,7 +23,22 @@ from pathlib import Path
 
 # Import validation modules
 from scripts import fatal_errors, fixable_errors, stockholm_warnings as warnings, parser, alignment_stats
+from scripts import config
 from scripts.config import CMSCAN_MAX_EVALUE
+
+
+TOOL_URL = 'https://github.com/Rfam/rfam-seed-qc'
+# Wording that is true whether or not --fix changed anything; the report says
+# what changed.
+PROVENANCE_PREFIX = 'Processed by rfam-seed-qc'
+
+
+def tool_version():
+    """Version from the VERSION file, or 'unknown'."""
+    try:
+        return (Path(__file__).parent / 'VERSION').read_text().strip()
+    except Exception:
+        return 'unknown'
 
 
 def validate_stockholm_file(filepath):
@@ -243,7 +259,6 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
                 family_acc = fields[1]
                 seq_name = fields[2]
                 evalue_str = fields[15]
-                score = fields[14]
 
                 if seq_name in seen:
                     continue
@@ -319,7 +334,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # Fix missing coordinates if any
     if missing_coords:
         if verbose:
-            print(f"  Fixing {len(missing_coords)} missing coordinates (downloading from NCBI)...")
+            print(f"  Fixing {len(missing_coords)} missing coordinates (from {_seq_source()})...")
         id_mapping, coords_to_remove = fixable_errors.fix_missing_coordinates(filepath, verbose=verbose)
         to_remove.update(coords_to_remove)
         # Count sequences that got new coordinates (where key != value)
@@ -374,9 +389,21 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
 
     num_fixes += num_duplicates
 
-    # Check for overlapping sequences and remove them
+    # Check for overlapping sequences and remove them. When copies of an
+    # accession overlap, keep one that matches its source (NCBI, local nt or
+    # RNAcentral): check those copies first, without BLAST.
     overlapping = fixable_errors.find_overlapping_sequences(processed_sequences)
     if overlapping:
+        overlap_accessions = {fixable_errors.parse_sequence_identifier(name)[0] for name in overlapping}
+        candidates = [(name, seq) for name, seq in processed_sequences
+                      if fixable_errors.parse_sequence_identifier(name)[0] in overlap_accessions]
+        if verbose:
+            print(f"  Checking {len(candidates)} sequence(s) with overlapping coordinates "
+                  f"against {_seq_source()} to choose which to keep...")
+        failed = fixable_errors.validate_sequences_against_ncbi(
+            candidates, verbose=False, use_blast_fallback=False)[0]
+        matching = {name for name, _ in candidates if name not in failed}
+        overlapping = fixable_errors.find_overlapping_sequences(processed_sequences, preferred=matching)
         if verbose:
             print(f"  Found {len(overlapping)} overlapping sequence(s) to remove")
         # Filter out overlapping sequences
@@ -385,7 +412,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
 
     # Validate sequences against NCBI (with BLAST fallback)
     if verbose:
-        print(f"  Validating {len(processed_sequences)} sequence(s) against NCBI...")
+        print(f"  Validating {len(processed_sequences)} sequence(s) against {_seq_source()}...")
     # Collect unverified taxids for this file only (the list is module-level)
     fixable_errors.rnacentral.unverified_taxids.clear()
     invalid_seqs, not_found_seqs, mismatched_seqs, blast_fixed = fixable_errors.validate_sequences_against_ncbi(processed_sequences, verbose=verbose)
@@ -454,8 +481,17 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # 1. Header (# STOCKHOLM 1.0)
     corrected_lines.extend(header_lines)
 
-    # 2. File-level annotations (#=GF) - keep at top
-    corrected_lines.extend(gf_lines)
+    # 2. File-level annotations (#=GF) - keep at top, then record which tool
+    #    and version produced this file (replacing the note from any earlier run)
+    for line in gf_lines:
+        # Drop only our own generated line; keep curated lines that mention the tool
+        fields = line.split(maxsplit=2)
+        if (len(fields) == 3 and fields[:2] == ['#=GF', 'CC']
+                and fields[2].startswith(f'{PROVENANCE_PREFIX} v')
+                and fields[2].rstrip().endswith(f'({TOOL_URL})')):
+            continue
+        corrected_lines.append(line)
+    corrected_lines.append(f"#=GF CC   {PROVENANCE_PREFIX} v{tool_version()} ({TOOL_URL})\n")
 
     # 3. Sequence-level metadata (#=GS) for kept sequences
     for orig_seq_id, ann_line in gs_lines:
@@ -565,6 +601,43 @@ class TeeOutput:
         return self.buffer.getvalue()
 
 
+def _seq_source():
+    """Where sequences are fetched from, for progress messages."""
+    if config.BLAST_LOCAL_DB:
+        return f"local {os.path.basename(config.BLAST_LOCAL_DB)}, NCBI if missing"
+    return "NCBI"
+
+
+def check_local_blast(db):
+    """Exit early if local blastn or the BLAST database is unusable.
+
+    Returns lines describing the database (title, size, date) and threads,
+    for the report.
+    """
+    if not shutil.which('blastn') or not shutil.which('blastdbcmd'):
+        sys.exit("ERROR: --local needs BLAST+ (blastn, blastdbcmd) on PATH. "
+                 "Install with: conda install -c bioconda blast")
+    info = subprocess.run(['blastdbcmd', '-db', db, '-info'],
+                          capture_output=True, text=True)
+    if info.returncode != 0:
+        sys.exit(f"ERROR: BLAST database '{db}' not found or unreadable "
+                 f"(BLASTDB={os.environ.get('BLASTDB', 'unset')}): {info.stderr.strip()}")
+    # Hits must be retrievable by name for validation. A database built
+    # without makeblastdb -parse_seqids only has record numbers (BL_ORD_ID).
+    first = subprocess.Popen(['blastdbcmd', '-db', db, '-entry', 'all', '-outfmt', '%a'],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    first_id = first.stdout.readline().strip()
+    first.kill()
+    first.wait()
+    if first_id.startswith('BL_ORD_ID'):
+        sys.exit(f"ERROR: BLAST database '{db}' was built without sequence IDs, so hits "
+                 f"cannot be validated. Rebuild it with: makeblastdb -parse_seqids ...")
+    lines = [f"  Local BLAST db: {line.strip()}" for line in info.stdout.splitlines()
+             if line.strip().startswith(('Database:', 'Date:')) or 'sequences;' in line]
+    lines.append(f"  Local BLAST threads: {config.BLAST_NUM_THREADS}")
+    return lines
+
+
 def main():
     """Main function to run validation from command line."""
     parser_arg = argparse.ArgumentParser(
@@ -596,8 +669,41 @@ def main():
         default=None,
         help='Path to Rfam CM database (e.g., Rfam.cm) to filter sequences matching known families'
     )
+    parser_arg.add_argument(
+        '--local',
+        action='store_true',
+        help='Run BLAST locally with BLAST+ instead of the NCBI web API'
+    )
+    parser_arg.add_argument(
+        '--blast-db',
+        default=None, metavar='BLAST_LOCAL_DB',
+        help='Local BLAST database for --local: a name in $BLASTDB or a path '
+             '(default: nt)'
+    )
+    parser_arg.add_argument(
+        '--threads',
+        type=int, default=None, metavar='N',
+        help='Threads for local blastn with --local (default: CPUs available '
+             'to the job)'
+    )
     args = parser_arg.parse_args()
-    
+
+    if args.blast_db and not args.local:
+        parser_arg.error('--blast-db can only be used with --local')
+    if args.threads is not None and not args.local:
+        parser_arg.error('--threads can only be used with --local')
+    if args.threads is not None and args.threads < 1:
+        parser_arg.error('--threads must be at least 1')
+    if args.threads:
+        config.BLAST_NUM_THREADS = args.threads
+    run_info = []
+    if args.local:
+        db = args.blast_db or 'nt'
+        run_info = check_local_blast(db)
+        config.BLAST_LOCAL_DB = db
+    if config.NCBI_API_KEY:
+        run_info.append("  NCBI API key: used (from NCBI_API_KEY)")  # never print the key
+
     all_valid = True
     
     for filepath in args.files:
@@ -619,7 +725,16 @@ def main():
 
         # Handle fixing if requested (always run to validate sequences against NCBI)
         if args.fix and result['is_valid']:
-            success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
+            # Record the local database in each file's report (reproducibility)
+            # (stderr in stdout mode, so the output still starts with the header)
+            for line in run_info:
+                print(line, file=sys.stderr if args.output_mode == 'stdout' else sys.stdout)
+            try:
+                success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
+            except fixable_errors.RunAbortError as e:
+                if tee is not None:
+                    sys.stdout = tee.original
+                sys.exit(f"ERROR: {e}\nStopping so no sequence is removed by mistake.")
             if success:
                 if args.output_mode == 'file':
                     print(f"✓ Fixed {num_fixes} issue(s) in {filepath}")
@@ -652,7 +767,7 @@ def main():
                 print(f"  ⚠ Warning: {warning}")
 
             if not args.fix:
-                print(f"  Tip: Use --fix to automatically correct these issues")
+                print("  Tip: Use --fix to automatically correct these issues")
 
         else:
             print(f"✗ {filepath}: INVALID")
@@ -673,11 +788,7 @@ def main():
         if tee is not None:
             sys.stdout = tee.original
             report_path = path.parent / f"{path.stem}_Report.txt"
-            version_file = Path(__file__).parent / 'VERSION'
-            try:
-                version = version_file.read_text().strip()
-            except Exception:
-                version = 'unknown'
+            version = tool_version()
             header = (
                 f"rfam-seed-qc v{version}\n"
                 f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
@@ -693,7 +804,7 @@ def main():
         print(f"\nAll {len(args.files)} file(s) passed validation.")
         return 0
     else:
-        print(f"\nValidation failed for one or more files.")
+        print("\nValidation failed for one or more files.")
         return 1
 
 

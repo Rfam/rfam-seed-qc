@@ -1,11 +1,11 @@
 name: rfam-seed-qc
 channels:
-  - bioconda
   - conda-forge
-  - defaults
+  - bioconda
 dependencies:
   - python>=3.8
   - biopython
   - infernal
+  - easel          # esl-reformat etc.; not included in bioconda's infernal
   - blast
   - wget

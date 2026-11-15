@@ -16,12 +16,16 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
      Requires Infernal (cmscan) to be installed and in PATH.
   3. Fix missing coordinates - For sequences without coordinates (e.g., NZ_CP038662.1):
     - NCBI Direct Lookup: Download FASTA from NCBI, find sequence match to get coordinates
-    - BLAST Fallback: If direct lookup fails, run BLAST search (>=95% identity, >=90% coverage, e-value <=1e-10)
+    - BLAST Fallback: If direct lookup fails, run BLAST search (>=95% identity, >=90% coverage, e-value <=1e-10);
+      among passing hits, an exact full-length match is preferred
+      By default via NCBI's web API (which searches core_nt); with --local, via local BLAST+ against nt
+      (or the database given with --blast-db). With --local, sequences are also read from the local
+      database, and NCBI is used only for accessions it lacks.
     - Mark for removal: Sequences that fail both methods
   4. Remove duplicates - Remove sequences with identical accession, coordinates, and sequence data
-  5. Remove overlapping sequences - For sequences from the same accession that overlap by >=1 bp, use greedy interval scheduling to keep maximum non-overlapping set
+  5. Remove overlapping sequences - For sequences from the same accession that overlap by >=1 bp, keep copies that match NCBI (checked without BLAST) first, then the lower start coordinate
   6. Validate against NCBI (with BLAST fallback) - For all remaining sequences:
-    - Fetch FASTA from NCBI using accession
+    - Fetch FASTA from NCBI using accession (with --local: from the local database, NCBI only if missing)
     - Extract subsequence at given coordinates
     - Compare with Stockholm sequence (gaps removed, RNA to DNA converted)
     - If accession not found or sequence mismatches: run BLAST search as fallback
@@ -36,7 +40,8 @@ When running validate_stockholm.py --fix, the script performs these steps in ord
      final alignment using esl-reformat from the Easel/Infernal package.
      All-gap columns can arise after sequence removals in earlier steps.
      Reports the number of columns removed and the resulting alignment width.
-     Requires esl-reformat to be installed and in PATH (part of Infernal).
+     Requires esl-reformat to be installed and in PATH (Infernal source/Homebrew, or the
+     bioconda 'easel' package, which environment.yml installs).
   9. Write output - Save corrected file with proper Stockholm format order:
     - # STOCKHOLM 1.0 header
     - #=GF annotations (file-level)
@@ -59,6 +64,9 @@ Configuration (scripts/config.py):
   - BLAST_MIN_IDENTITY = 95       (minimum identity % for BLAST hits)
   - BLAST_MIN_COVERAGE = 90       (minimum coverage % for BLAST hits)
   - BLAST_MAX_EVALUE = 1e-10      (maximum e-value for BLAST hits)
-  - BLAST_HITLIST_SIZE = 5        (number of BLAST hits to retrieve)
+  - BLAST_HITLIST_SIZE = 250      (number of BLAST hits to retrieve)
+  - BLAST_NUM_THREADS = CPUs available (threads for local blastn, --local only; --threads overrides)
   - CMSCAN_MAX_EVALUE = 1e-3      (maximum e-value for cmscan known-family warnings)
-  - NCBI_REQUEST_DELAY = 0.5      (delay between NCBI requests in seconds)
+  - NCBI_REQUEST_DELAY = 0.5      (delay between NCBI requests in seconds; 0.1 with an API key)
+  - NCBI_API_KEY                  (optional, from the NCBI_API_KEY environment variable; never stored in the repo)
+  - RFAM_SEED_QC_CACHE            (environment variable: sequence cache folder; default ~/.cache/rfam-seed-qc/fasta)

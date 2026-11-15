@@ -5,10 +5,10 @@ on:
     branches-ignore:
       - main
     paths:
-      - '**.so'
-      - '**.sto'
-      - '**.stk'
-      - '**.stockholm'
+      - 'alignments/**.so'
+      - 'alignments/**.sto'
+      - 'alignments/**.stk'
+      - 'alignments/**.stockholm'
 
 jobs:
   validate-and-fix:
@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # Write Python output to the log immediately instead of in 8 KB chunks,
+      # so progress is visible while long NCBI/RNAcentral steps run
+      PYTHONUNBUFFERED: "1"
 
     steps:
       - name: Checkout code
@@ -28,7 +32,8 @@ jobs:
         with:
           environment-file: environment.yml
           activate-environment: rfam-seed-qc
-          channels: bioconda,conda-forge,defaults
+          channels: conda-forge,bioconda
+          channel-priority: strict
 
       - name: Prepare Rfam CM database
         shell: bash -l {0}
@@ -44,9 +49,9 @@ jobs:
             BEFORE="origin/main"
           fi
 
-          # Get changed alignment files, excluding generated outputs
+          # Get changed alignment files in alignments/, excluding generated outputs
           git diff --name-only --diff-filter=ACMRT "$BEFORE" "${{ github.sha }}" | \
-            grep -E '\.(so|sto|stk|stockholm)$' | \
+            grep -E '^alignments/.*\.(so|sto|stk|stockholm)$' | \
             grep -v '_corrected\.' > changed_files.txt || true
 
           if [ -s changed_files.txt ]; then
@@ -56,16 +61,6 @@ jobs:
           else
             echo "has_files=false" >> $GITHUB_OUTPUT
             echo "No Stockholm files changed"
-          fi
-
-      - name: Check files are in tests/ directory
-        if: steps.changed-files.outputs.has_files == 'true'
-        run: |
-          INVALID=$(grep -v '^tests/' changed_files.txt || true)
-          if [ -n "$INVALID" ]; then
-            echo "::error::Stockholm files must be placed in the tests/ directory. Found files outside tests/:"
-            echo "$INVALID"
-            exit 1
           fi
 
       - name: Validate and fix Stockholm files
@@ -84,7 +79,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          find tests/ \( -name '*_corrected.*' -o -name '*_Report.txt' \) -exec git add {} +
+          find alignments/ \( -name '*_corrected.*' -o -name '*_Report.txt' \) -exec git add {} +
           if git diff --cached --quiet; then
             echo "No corrected files to commit"
           else

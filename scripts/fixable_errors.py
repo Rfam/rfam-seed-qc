@@ -4,10 +4,14 @@ Fixable error handlers for Stockholm files.
 These errors can be automatically corrected.
 """
 
+import errno
+import io
 import os
+import random
 import sys
 import time
 import re
+import subprocess
 import warnings
 
 # Suppress BioPython warnings
@@ -17,6 +21,98 @@ warnings.filterwarnings("ignore", message=".*FASTA.*")
 # Import configuration
 from scripts import config
 from scripts import rnacentral
+
+
+class RunAbortError(RuntimeError):
+    """A failure that must stop the run: carrying on would remove sequences
+    for reasons that have nothing to do with the sequences themselves."""
+
+
+class LocalBlastError(RunAbortError):
+    """Local blastn could not run (missing binary or database)."""
+
+
+class NCBIUnavailableError(RunAbortError):
+    """NCBI kept refusing requests (HTTP 429 rate limit or 5xx) after retries."""
+
+
+class CacheError(RunAbortError):
+    """The sequence cache folder cannot be written (read-only, full or over quota)."""
+
+
+# Errors from writing a file that mean the cache folder is unusable. Permission
+# errors count only when they name a file, so a refused network connection is
+# never mistaken for a cache problem.
+_DISK_FULL_ERRNOS = {errno.ENOSPC, errno.EROFS, getattr(errno, 'EDQUOT', errno.ENOSPC)}
+
+
+def _is_cache_write_error(e):
+    if not isinstance(e, OSError):
+        return False
+    if e.errno in _DISK_FULL_ERRNOS:
+        return True
+    return e.errno in (errno.EACCES, errno.EPERM) and getattr(e, 'filename', None) is not None
+
+
+def _cache_error(e, folder):
+    return CacheError(
+        f"Cannot write to the sequence cache folder {folder} ({e.strerror or e}). "
+        f"Set RFAM_SEED_QC_CACHE to a writable folder with free space")
+
+
+_cache_folder = []   # resolved once per run
+
+
+def _cache_dir():
+    """Folder where downloaded and local-database records are cached.
+
+    $RFAM_SEED_QC_CACHE if set, else $XDG_CACHE_HOME/rfam-seed-qc/fasta
+    (default ~/.cache/rfam-seed-qc/fasta). Kept outside the install folder,
+    which is read-only in containers and shared installs. If it cannot be
+    written the run stops: otherwise every lookup would fail and valid
+    sequences would be removed as "not found".
+    """
+    if _cache_folder:
+        return _cache_folder[0]
+    import tempfile
+    folder = os.environ.get('RFAM_SEED_QC_CACHE', '').strip()
+    if not folder:
+        base = (os.environ.get('XDG_CACHE_HOME', '').strip()
+                or os.path.join(os.path.expanduser('~'), '.cache'))
+        folder = os.path.join(base, 'rfam-seed-qc', 'fasta')
+    folder = os.path.abspath(os.path.expanduser(folder))
+    try:
+        os.makedirs(folder, exist_ok=True)
+        fd, probe = tempfile.mkstemp(dir=folder, suffix='.part')
+        os.close(fd)
+        os.remove(probe)
+    except OSError as e:
+        raise _cache_error(e, folder) from e
+    _cache_folder.append(folder)
+    return folder
+
+
+def _cache_tempfile(folder):
+    """Temporary file in the cache folder; a write failure stops the run."""
+    import tempfile
+    try:
+        return tempfile.mkstemp(dir=folder, suffix='.part')
+    except OSError as e:
+        raise _cache_error(e, folder) from e
+
+
+def _cache_store(tmp_path, fasta_file):
+    """Move a finished download into place (atomic); a failure stops the run."""
+    try:
+        os.replace(tmp_path, fasta_file)
+    except OSError as e:
+        raise _cache_error(e, os.path.dirname(fasta_file)) from e
+
+
+def _ncbi_refused(e):
+    """True for HTTP errors that mean 'try later' (rate limit, server trouble)."""
+    import urllib.error
+    return isinstance(e, urllib.error.HTTPError) and (e.code == 429 or e.code >= 500)
 
 
 def parse_sequence_identifier(seq_name):
@@ -77,10 +173,52 @@ def _is_fasta_file(path):
         return False
 
 
+# NCBI nucleotide accession formats, optionally versioned: INSDC (X03205,
+# AF265547, AC277891), WGS/TSA (JAHKSV010000123) and RefSeq (NR_038927,
+# NC_000913, NZ_CP045771, NZ_JAHKSV010000123). With --local, only these fall
+# back to NCBI when missing from the local database; other labels (species
+# names, metagenome contigs such as SRS013261_C1604114, plain numbers) go
+# straight to BLAST, so offline runs do not wait on network timeouts.
+_ACCESSION_RE = re.compile(r'^(?:[A-Z]{2}_[A-Z]{0,6}|[A-Z]{1,6})\d{5,12}(\.\d+)?$')
+
+
+def _fetch_local(identifier, fasta_file, fasta_folder):
+    """With --local, copy the record from the local BLAST database into the
+    FASTA cache. Returns True on success, False if the database lacks it.
+
+    Raises LocalBlastError for any other failure (unreadable volume, broken
+    index, I/O error): treating those as "not found" could remove valid
+    sequences, so the run stops instead.
+    """
+    if ',' in identifier:
+        return False  # blastdbcmd -entry would read a comma as a list of entries
+    fd, tmp_path = _cache_tempfile(fasta_folder)
+    try:
+        with os.fdopen(fd, 'wb') as out:
+            proc = subprocess.run(
+                ['blastdbcmd', '-db', config.BLAST_LOCAL_DB, '-entry', identifier,
+                 '-target_only', '-outfmt', '%f'],
+                stdout=out, stderr=subprocess.PIPE, text=True)
+        if proc.returncode == 0 and _is_fasta_file(tmp_path):
+            _cache_store(tmp_path, fasta_file)  # atomic: cache only valid FASTA
+            return True
+        if 'Entry not found' in proc.stderr:
+            return False
+        raise LocalBlastError(f"blastdbcmd failed for {identifier}: "
+                              f"{proc.stderr.strip() or 'exit code %d' % proc.returncode}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 def get_fasta_file(identifier, max_retries=3):
     """
     Download fasta file from NCBI if not already downloaded.
-    Retries on transient network failures.
+    Retries on transient network failures (longer waits when NCBI rate-limits).
+
+    With --local (config.BLAST_LOCAL_DB set), the record is read from the
+    local BLAST database first; NCBI is used only for real-looking accessions
+    the local database lacks.
 
     NCBI efetch answers an unknown identifier with HTTP 200 and an
     'Error: ...' body, so the download is checked to be real FASTA before it
@@ -96,32 +234,50 @@ def get_fasta_file(identifier, max_retries=3):
     """
     import http.client
     import shutil
-    import tempfile
     import urllib.error
     import urllib.request
 
-    script_location = os.path.dirname(os.path.abspath(__file__))
-    fasta_folder = os.path.join(script_location, 'fasta')
-    os.makedirs(fasta_folder, exist_ok=True)
+    fasta_folder = _cache_dir()
     fasta_file = os.path.join(fasta_folder, identifier + '.fasta')
 
+    # A versioned accession (AF228364.1) never changes sequence, so its cached
+    # copy is valid for any source. An unversioned one (AF228364) means "the
+    # current version", which can differ between sources and snapshots, so
+    # with --local it is always resolved in the selected database (cheap).
+    versioned = re.search(r'\.\d+$', identifier) is not None
     if _is_fasta_file(fasta_file):
-        return fasta_file
-    if os.path.exists(fasta_file):
+        if versioned or not config.BLAST_LOCAL_DB:
+            return fasta_file
+    elif os.path.exists(fasta_file):
         os.remove(fasta_file)  # stale error reply or empty file from an earlier run
+
+    if config.BLAST_LOCAL_DB:
+        # --local: read the record from the local database; fall back to NCBI
+        # only for real-looking accessions the local database lacks (nt omits
+        # some divisions, e.g. most WGS contigs).
+        if _fetch_local(identifier, fasta_file, fasta_folder):
+            return fasta_file
+        if not _ACCESSION_RE.match(identifier):
+            raise AccessionNotFoundError(
+                f"{identifier} is not an accession and is not in the local database")
 
     from urllib.parse import urlencode
     params = {'db': 'nuccore', 'id': identifier, 'rettype': 'fasta', 'retmode': 'text',
               'tool': config.NCBI_TOOL}
     if config.NCBI_EMAIL:
         params['email'] = config.NCBI_EMAIL
+    if config.NCBI_API_KEY:
+        # Rate limit then applies to the key, not a shared (cluster) IP
+        params['api_key'] = config.NCBI_API_KEY
     url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?" + urlencode(params)
     request = urllib.request.Request(url, headers={'User-Agent': config.NCBI_TOOL})
     last_error = None
     for attempt in range(1, max_retries + 1):
-        time.sleep(config.NCBI_REQUEST_DELAY)
-        fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
+        time.sleep(config.NCBI_REQUEST_DELAY_WITH_KEY if config.NCBI_API_KEY
+                   else config.NCBI_REQUEST_DELAY)
+        fd, tmp_path = _cache_tempfile(fasta_folder)
         os.close(fd)
+        wait = 2 * attempt  # backoff before retry
         try:
             ok = False
             try:
@@ -132,23 +288,43 @@ def get_fasta_file(identifier, max_retries=3):
             except urllib.error.HTTPError as e:
                 # Keep the body: NCBI explains errors in it
                 last_error = e
+                if e.code == 429 or e.code >= 500:
+                    # Rate-limited or overloaded (common from shared cluster
+                    # IPs): honour Retry-After, else back off for longer.
+                    try:
+                        wait = min(float(e.headers.get('Retry-After')), 120)
+                    except (TypeError, ValueError, AttributeError):
+                        wait = 10 * attempt + random.uniform(0, 3)
                 try:
                     with open(tmp_path, 'wb') as out:
                         out.write(e.read())
                 except (http.client.HTTPException, OSError):
                     pass
+                if e.code == 400 and config.NCBI_API_KEY and 'API key' in _read_head(tmp_path):
+                    # A bad key makes every request fail: stop rather than
+                    # report every sequence as missing. Never echo the key.
+                    raise NCBIUnavailableError(
+                        "NCBI rejected the API key in NCBI_API_KEY (invalid). "
+                        "Fix or unset NCBI_API_KEY")
             except (http.client.HTTPException, OSError, ValueError) as e:
                 # OSError: URLError, timeouts, connection resets.
                 # HTTPException: IncompleteRead, RemoteDisconnected.
+                if _is_cache_write_error(e):
+                    # Disk full or over quota while saving: not a network
+                    # problem, and retrying or skipping would drop sequences
+                    raise _cache_error(e, fasta_folder) from e
                 last_error = e
 
             if ok and _is_fasta_file(tmp_path):
-                os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
+                _cache_store(tmp_path, fasta_file)  # atomic: cache only valid FASTA
                 return fasta_file
-            if os.path.getsize(tmp_path) > 0:
+            if ok and os.path.getsize(tmp_path) > 0:
+                # NCBI answers an unknown id with HTTP 200 and an 'Error: ...'
+                # body: a definitive answer, retrying will not help. An error
+                # status (429, 5xx) is never read this way, even if its body
+                # starts with 'Error', so it gets the retries below.
                 head = _read_head(tmp_path).strip()
                 if head.startswith('Error'):
-                    # Definitive answer from NCBI; retrying will not help
                     raise AccessionNotFoundError(f"NCBI has no record for {identifier}")
             if ok:
                 last_error = 'unexpected reply (not FASTA)'
@@ -156,20 +332,32 @@ def get_fasta_file(identifier, max_retries=3):
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         if attempt < max_retries:
-            time.sleep(2 * attempt)  # backoff before retry
+            time.sleep(wait)
+    if _ncbi_refused(last_error):
+        # NCBI is up but refusing (rate limit / overload). Treating this as a
+        # missing record would remove valid sequences: stop the run instead.
+        raise NCBIUnavailableError(
+            f"NCBI kept refusing requests for {identifier} ({last_error}) after {max_retries} "
+            f"attempts. Try again later, set NCBI_API_KEY, or use --local")
     raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts"
                        f" ({last_error})")
 
 
 def get_accession_version(fasta_file):
-    """Get version from downloaded fasta file header."""
+    """Get the version suffix (e.g. '.2') from the FASTA header.
+
+    Returns '' when the header has no version, e.g. a record in a custom
+    local BLAST database named Homo_sapiens_chr12: inventing '.1' would
+    produce a name that exists nowhere and fails validation. NCBI headers
+    are always versioned.
+    """
     with open(fasta_file, 'r') as f:
         for line in f:
             if line.startswith('>'):
                 name = line.split()[0][1:]  # Remove '>'
-                if '.' in name:
-                    return '.' + name.split('.')[1]
-    return '.1'
+                m = re.search(r'(\.\d+)$', name)
+                return m.group(1) if m else ''
+    return ''
 
 
 def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None):
@@ -207,26 +395,69 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
     blast_records = None
 
     try:
-        # Identify ourselves to NCBI (sent with every qblast request)
-        NCBIWWW.tool = config.NCBI_TOOL
-        NCBIWWW.email = config.NCBI_EMAIL
+        if config.BLAST_LOCAL_DB:
+            # Local BLAST+ with the same task and scoring as the web search
+            # below, so a local run and an API run differ only in database.
+            gap_open, gap_extend = config.BLAST_GAP_COSTS.split()
+            proc = subprocess.run(
+                ['blastn', '-task', 'blastn', '-db', config.BLAST_LOCAL_DB,
+                 '-word_size', str(config.BLAST_WORD_SIZE),
+                 '-reward', str(config.BLAST_MATCH_REWARD),
+                 '-penalty', str(config.BLAST_MISMATCH_PENALTY),
+                 '-gapopen', gap_open, '-gapextend', gap_extend,
+                 '-max_target_seqs', str(config.BLAST_HITLIST_SIZE),
+                 '-evalue', str(max_evalue),
+                 '-num_threads', str(config.BLAST_NUM_THREADS),
+                 '-outfmt', '5'],
+                input=f">query\n{dna_seq}\n", capture_output=True, text=True
+            )
+            if proc.returncode != 0:
+                # A broken local setup is not "no hit": stop rather than let
+                # every sequence be removed.
+                raise LocalBlastError(f"local blastn failed: {proc.stderr.strip()}")
+            result_handle = io.StringIO(proc.stdout)
+        else:
+            # Identify ourselves to NCBI (sent with every qblast request)
+            NCBIWWW.tool = config.NCBI_TOOL
+            NCBIWWW.email = config.NCBI_EMAIL
 
-        # Standard blastn (not megablast) against nt, with the task's scoring
-        # parameters set explicitly rather than relying on NCBI's defaults.
-        # MEGABLAST is deliberately not sent. Limit results for speed.
-        result_handle = NCBIWWW.qblast(
-            "blastn", "nt", dna_seq,
-            word_size=config.BLAST_WORD_SIZE,
-            nucl_reward=config.BLAST_MATCH_REWARD,
-            nucl_penalty=config.BLAST_MISMATCH_PENALTY,
-            gapcosts=config.BLAST_GAP_COSTS,
-            hitlist_size=config.BLAST_HITLIST_SIZE,
-            expect=max_evalue,
-            format_type="XML"
-        )
+            # Standard blastn (not megablast) against nt, with the task's scoring
+            # parameters set explicitly rather than relying on NCBI's defaults.
+            # MEGABLAST is deliberately not sent. Limit results for speed.
+            # Note: NCBI's server currently searches core_nt when asked for nt.
+            # NCBI may throttle (429) or be overloaded (5xx): retry with a
+            # long backoff, then stop the run rather than report "no hit".
+            for attempt in range(1, 4):
+                try:
+                    result_handle = NCBIWWW.qblast(
+                        "blastn", "nt", dna_seq,
+                        word_size=config.BLAST_WORD_SIZE,
+                        nucl_reward=config.BLAST_MATCH_REWARD,
+                        nucl_penalty=config.BLAST_MISMATCH_PENALTY,
+                        gapcosts=config.BLAST_GAP_COSTS,
+                        hitlist_size=config.BLAST_HITLIST_SIZE,
+                        expect=max_evalue,
+                        format_type="XML"
+                    )
+                    break
+                except Exception as e:
+                    if not _ncbi_refused(e):
+                        raise
+                    if attempt == 3:
+                        raise NCBIUnavailableError(
+                            f"NCBI BLAST kept refusing requests ({e}) after 3 attempts. "
+                            f"Try again later, or use --local") from e
+                    if verbose:
+                        print(f"    NCBI BLAST refused the request ({e}), retrying...")
+                    time.sleep(config.NCBI_BLAST_RETRY_WAIT * attempt)
         blast_records = NCBIXML.parse(result_handle)
         blast_record = next(blast_records)
 
+        # Pick the first acceptable hit in BLAST's order, but prefer an exact
+        # full-length match (all bases identical, no gaps, whole query) if any
+        # hit has one: only exact matches survive the later NCBI/MD5 check, and
+        # with many hits returned the exact one is not always listed first.
+        first_ok = None
         for alignment in blast_record.alignments:
             for hsp in alignment.hsps:
                 # Calculate identity and coverage. BLAST query coordinates are
@@ -240,9 +471,17 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                     accession = None
 
                     # Format: "gi|xxx|ref|NZ_CP045771.1|" or "gi|xxx|gb|CP041614.1|"
-                    accession_match = re.search(r'\|(ref|gb|emb|dbj)\|([^|]+)\|', hit_def)
+                    # (web API), or "ref|NZ_CP045771.1|" (local BLAST+ databases);
+                    # tpg/tpe/tpd are third-party annotation records in nt
+                    accession_match = re.search(r'(?:^|\|)(ref|gb|emb|dbj|tpg|tpe|tpd)\|([^|]+)\|', hit_def)
+                    hit_id = alignment.hit_id
                     if accession_match:
                         accession = accession_match.group(2).rstrip('|')
+                    elif config.BLAST_LOCAL_DB and (hit_id.startswith('lcl|') or '|' not in hit_id):
+                        # Custom database built with makeblastdb -parse_seqids:
+                        # the hit id is the record's own name (Homo_sapiens_chr12),
+                        # which blastdbcmd can retrieve for validation
+                        accession = hit_id[4:] if hit_id.startswith('lcl|') else hit_id
                     else:
                         # Try format: "NZ_CP045771.1 description"
                         accession_match = re.search(r'^([A-Z]{1,2}_?[A-Z]*\d+\.\d+)', alignment.hit_id)
@@ -256,17 +495,36 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                         coords = f"{hsp.sbjct_start}-{hsp.sbjct_end}"
 
                         new_accession = f"{accession}/{coords}"
+                        hit = (new_accession, identity, coverage, hsp.expect)
 
-                        if verbose:
-                            print(f"    BLAST hit: {new_accession} (identity={identity:.1f}%, coverage={coverage:.1f}%, e={hsp.expect:.2e})")
+                        exact = (hsp.identities == len(dna_seq) == hsp.align_length)
+                        if exact:
+                            first_ok = hit
+                            break
+                        if first_ok is None:
+                            first_ok = hit
+            else:
+                continue
+            break  # exact match found
 
-                        return new_accession, True
+        if first_ok:
+            new_accession, identity, coverage, evalue = first_ok
+            if verbose:
+                print(f"    BLAST hit: {new_accession} (identity={identity:.1f}%, coverage={coverage:.1f}%, e={evalue:.2e})")
+            return new_accession, True
 
         if verbose:
-            print(f"    No accurate BLAST hit found")
+            print("    No accurate BLAST hit found")
         return None, False
 
+    except RunAbortError:
+        raise
     except Exception as e:
+        if config.BLAST_LOCAL_DB:
+            # Locally, a real "no hit" is valid XML with no hits and never
+            # gets here; any exception (blastn missing, unreadable output) is
+            # a failure, and must not be mistaken for "no hit".
+            raise LocalBlastError(f"local BLAST failed: {type(e).__name__}: {e}") from e
         if verbose:
             print(f"    BLAST search failed: {e}")
         return None, False
@@ -388,6 +646,8 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
                 mapping[record.id] = new_accession
                 continue
 
+        except RunAbortError:
+            raise  # broken local database or NCBI refusing: stop, don't drop the sequence
         except Exception as e:
             if verbose:
                 print(f"  Warning: Could not read fasta for {record.id}: {e}")
@@ -437,18 +697,21 @@ def check_overlap(start1, end1, start2, end2):
     return a1 <= b2 and b1 <= a2
 
 
-def find_overlapping_sequences(sequence_entries):
+def find_overlapping_sequences(sequence_entries, preferred=None):
     """
     Find sequences from the same accession that overlap.
 
     Args:
         sequence_entries: List of (seq_name, seq_data) tuples
+        preferred: Optional set of names to keep first when they overlap
+            others (e.g. those that match NCBI). Without it, or among equally
+            preferred sequences, the one with the lower start is kept.
 
     Returns:
         set: Sequence names to remove due to overlaps
     """
-    import random
     from collections import defaultdict
+    preferred = preferred or set()
 
     # Group sequences by accession
     accession_groups = defaultdict(list)
@@ -468,9 +731,9 @@ def find_overlapping_sequences(sequence_entries):
         if len(sequences) < 2:
             continue
 
-        # Use greedy interval scheduling to keep maximum non-overlapping sequences
-        # Sort by end position (using min of start/end for reverse strand)
-        sorted_seqs = sorted(sequences, key=lambda x: min(x[1], x[2]))
+        # Greedy: keep preferred sequences first, then by lower start (using
+        # min of start/end for reverse strand); drop any that overlap a kept one
+        sorted_seqs = sorted(sequences, key=lambda x: (x[0] not in preferred, min(x[1], x[2])))
 
         kept = []
         for seq_name, start, end, seq_data in sorted_seqs:
@@ -591,6 +854,8 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                                     print(f"    First difference at position {i+1}: Stockholm={a}, NCBI={b}")
                                     break
 
+            except RunAbortError:
+                raise  # broken local database or NCBI refusing: stop, don't drop the sequence
             except Exception as e:
                 failure = 'not_found'
                 if verbose:
@@ -627,6 +892,8 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                         else:
                             if verbose:
                                 print(f"    BLAST hit {blast_result} found but sequence still does not match NCBI — removing")
+                    except RunAbortError:
+                        raise  # broken local database or NCBI refusing: stop, don't drop the sequence
                     except Exception:
                         if verbose:
                             print(f"    Could not re-validate BLAST hit {blast_result} — removing")

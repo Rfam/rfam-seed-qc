@@ -20,4 +20,6 @@ build/
 Thumbs.db
 
 Rfam.cm*
+# Sequence cache location used before v1.3.0
 scripts/fasta/*
+.pytest_cache/

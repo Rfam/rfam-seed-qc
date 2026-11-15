@@ -1,4 +1,10 @@
 # rfam-seed-qc
+
+[![Tests](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml/badge.svg)](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml)
+[![Release](https://img.shields.io/github/v/release/Rfam/rfam-seed-qc)](https://github.com/Rfam/rfam-seed-qc/releases)
+[![License](https://img.shields.io/github/license/Rfam/rfam-seed-qc)](LICENSE)
+![Python](https://img.shields.io/badge/python-%3E%3D3.8-blue)
+
 Tools for ensuring the quality of multiple sequence alignments (MSAs) in Rfam.
 
 ## Stockholm File Validation
@@ -7,7 +13,7 @@ This repository includes a modular validation script for Stockholm format alignm
 
 ### Installation
 
-**Option A: conda (everything included).** Installs Python, BioPython and the external tools (Infernal, BLAST):
+**Option A: conda (everything included).** Installs Python, BioPython and the external tools (Infernal, Easel, BLAST):
 
 ```bash
 git clone https://github.com/Rfam/rfam-seed-qc && cd rfam-seed-qc
@@ -23,21 +29,59 @@ git clone https://github.com/Rfam/rfam-seed-qc && cd rfam-seed-qc
 uv run validate_stockholm.py -v file.sto
 ```
 
-uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/infernal/) (`cmscan`, `cmpress`, `esl-reformat`), validation and `--fix` still work, but `--cm-db` filtering is unavailable and the all-gap column removal is skipped with a warning. Install it with e.g. `brew install infernal` or `conda install -c bioconda infernal`.
+uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/infernal/) (`cmscan`, `cmpress`, `esl-reformat`), validation and `--fix` still work, but `--cm-db` filtering is unavailable and the all-gap column removal is skipped with a warning. Install it with e.g. `brew install infernal`, or `conda install -c conda-forge -c bioconda infernal easel` (bioconda's `infernal` package does not include `esl-reformat`; it is in `easel`). `--local` also needs [BLAST+](https://www.ncbi.nlm.nih.gov/books/NBK569861/) (`blastn`, `blastdbcmd`, `update_blastdb.pl`), e.g. `conda install -c bioconda blast`.
 
 ### Usage
 
 ```bash
-python3 validate_stockholm.py [-v] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] <file1.so> [file2.so ...]
+python3 validate_stockholm.py [-v] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] [--local [--blast-db BLAST_LOCAL_DB] [--threads N]] <file1.so> [file2.so ...]
 ```
 
 Options:
 - `-v, --verbose`: Print detailed validation information
 - `--fix`: Attempt to fix fixable errors automatically
 - `--output-mode {stdout,file}`: Output mode for fixed files (default: file)
-  - `file`: Create a new file with `_corrected` suffix
+  - `file`: Create a new file with `_corrected` suffix, plus a `_Report.txt` log of the run (starting with the tool version)
   - `stdout`: Print corrected content to stdout
+  - The corrected alignment records the tool and version that produced it in a `#=GF CC   Processed by rfam-seed-qc vX.Y.Z (...)` line
 - `--cm-db <path>`: Path to Rfam CM database for filtering sequences matching known Rfam families (optional)
+- `--local`: Run BLAST and sequence lookups locally with BLAST+ (`blastn`, `blastdbcmd`) instead of NCBI's web services. Needs BLAST+ (included in the conda environment) and a local database; see [Local BLAST](#local-blast)
+- `--blast-db <BLAST_LOCAL_DB>`: Local BLAST database to use with `--local`: a name found in `$BLASTDB` or a path (default: `nt`). A custom database must be built with `makeblastdb -parse_seqids`, so hits can be looked up by name
+- `--threads <N>`: Threads for local `blastn` with `--local` (default: the CPUs available to the job, capped by `SLURM_CPUS_PER_TASK`). Set it explicitly in containers limited by CPU quota (e.g. `docker --cpus`)
+
+#### NCBI rate limits
+
+NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, or rejects the API key, the run stops with an error rather than removing sequences it could not check. To avoid this:
+
+- Use `--local` (see below), which reads sequences from a local database; or
+- Set an NCBI API key (free, from your [NCBI account settings](https://www.ncbi.nlm.nih.gov/account/settings/)). The limit then applies to your key (10 requests per second) instead of the shared IP. The key is read from the environment and never written to reports:
+
+```bash
+export NCBI_API_KEY=your_key_here
+```
+
+#### Sequence cache
+
+With `--fix`, sequences downloaded from NCBI (or read from the local database with `--local`) are cached, so later runs don't fetch them again. The cache is in `~/.cache/rfam-seed-qc/fasta` (or under `$XDG_CACHE_HOME`). To use another folder, for example where a home quota is small, set:
+
+```bash
+export RFAM_SEED_QC_CACHE=/path/to/rfam-seed-qc-cache
+```
+
+Records can be large (a whole genome or chromosome per accession), so allow several GB. The folder can be deleted at any time. If it cannot be written (read-only, full or over quota), the run stops with an error rather than removing sequences it could not check.
+
+#### Local BLAST
+
+NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Both modes use the same blastn settings, so `--local` is not more sensitive, but it is more complete: a sequence that is only in `nt` can be rescued with `--local` but not by the web search. Download the database once. In November 2026 `nt` was 1.1 TB to download and 1.3 TB on disk; check the current size first with `update_blastdb.pl --source ncbi --showall pretty | grep -w nt`:
+
+```bash
+export BLASTDB=/path/to/blastdb && mkdir -p $BLASTDB && cd $BLASTDB
+update_blastdb.pl --source ncbi --decompress --num_threads 4 nt
+```
+
+`update_blastdb.pl` downloads one volume at a time, so this can take several days: run it as a batch job, not on a login node. If it stops, run it again and it resumes.
+
+Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. In local mode, sequences are also read from the local database (with `blastdbcmd`), so there are no NCBI rate limits and jobs can run without internet access. Only accessions missing from the local database (`nt` omits some divisions, such as most WGS contigs) are fetched from NCBI, and RNAcentral IDs are still checked against RNAcentral.
 
 ### What is validated?
 
@@ -94,14 +138,16 @@ The script can detect and remove duplicate sequences using the `--fix` flag. Dup
 When sequences are missing coordinates (e.g., `NZ_CP038662.1` instead of `NZ_CP038662.1/4723652-4723704`), the `--fix` flag will:
 
 1. **NCBI Direct Lookup**: Download the FASTA sequence from NCBI and find coordinates by matching the alignment sequence
-2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries
+2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries. Among the hits that pass, an exact full-length match is preferred, since only exact matches pass the final check
 3. **Removal**: Sequences that cannot be resolved via either method are removed from the output
 
-**Requirements**: BioPython (`pip install biopython`)
+With `--local`, the lookup and the BLAST search use the local database instead (see [Local BLAST](#local-blast)).
+
+**Requirements**: BioPython (`pip install biopython`); BLAST+ for `--local`
 
 ### Overlap Detection and Removal
 
-Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, overlapping sequences are removed using greedy interval scheduling to keep the maximum number of non-overlapping sequences.
+Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, the overlapping copies are first checked against NCBI (or the local database, or RNAcentral), without BLAST, and copies that match are kept before those that don't. Then overlapping sequences are removed, keeping the lower start coordinate among equally good copies. This keeps the correct copy when a shifted, wrong copy of the same region is also in the alignment.
 
 ### Sequence Validation
 
@@ -110,6 +156,8 @@ When using `--fix`, all sequences are validated against NCBI to ensure they matc
 1. **NCBI Validation**: Fetches the source sequence from NCBI and compares it against the Stockholm sequence at the given coordinates
 2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
 3. **Removal**: Sequences that fail both NCBI validation and BLAST (or whose BLAST hit does not exactly match NCBI) are removed from the output
+
+With `--local`, sequences are fetched from the local database, and from NCBI only when an accession is missing from it.
 
 ### RNAcentral Identifiers
 
@@ -163,7 +211,7 @@ When running with `--fix -v`, the script computes and displays the average pairw
 
 After all sequence filtering and corrections are applied, the script runs `esl-reformat --mingap stockholm` on the final alignment to remove any all-gap columns. All-gap columns can be introduced when sequences are removed during earlier steps (duplicate removal, overlap resolution, NCBI validation). This step ensures the corrected alignment has no unnecessary gap-only columns.
 
-Requires `esl-reformat` from the [Easel](http://eddylab.org/software/easel/) library, which is distributed as part of [Infernal](http://eddylab.org/infernal/). If `esl-reformat` is not found in PATH, this step is skipped and a warning is printed.
+Requires `esl-reformat` from the [Easel](http://eddylab.org/software/easel/) library, which is distributed with [Infernal](http://eddylab.org/infernal/) source releases and Homebrew; with conda it is in the separate bioconda `easel` package (included in `environment.yml`). If `esl-reformat` is not found in PATH, this step is skipped and a warning is printed.
 
 The report includes the number of all-gap columns removed and the resulting alignment width.
 
@@ -180,15 +228,19 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_MIN_IDENTITY` | 95 | Minimum identity % for BLAST hits |
 | `BLAST_MIN_COVERAGE` | 90 | Minimum coverage % for BLAST hits |
 | `BLAST_MAX_EVALUE` | 1e-10 | Maximum e-value for BLAST hits |
-| `BLAST_HITLIST_SIZE` | 5 | Number of BLAST hits to retrieve |
+| `BLAST_HITLIST_SIZE` | 250 | Number of BLAST hits to retrieve. Kept large because BLAST uses it while searching, and small values can miss the best hit |
 | `BLAST_WORD_SIZE` | 11 | blastn word size |
 | `BLAST_MATCH_REWARD` / `BLAST_MISMATCH_PENALTY` | 2 / -3 | blastn match/mismatch scores |
 | `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |
+| `BLAST_NUM_THREADS` | CPUs available | Threads for local `blastn` (`--local` only; `--threads` overrides it) |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
 | `NCBI_TIMEOUT` | 60 | Timeout in seconds for one NCBI FASTA download |
 | `NCBI_TOOL` | `rfam-seed-qc` | Tool name sent to NCBI (BLAST and E-utilities) |
 | `NCBI_EMAIL` | `None` | Your email, sent to NCBI so they can contact you before blocking heavy use (recommended) |
+| `NCBI_API_KEY` | from the `NCBI_API_KEY` environment variable | Optional NCBI API key (see [NCBI rate limits](#ncbi-rate-limits)). Never put it in `config.py` |
+| `NCBI_REQUEST_DELAY_WITH_KEY` | 0.1 | Delay between NCBI requests in seconds when an API key is set |
+| `NCBI_BLAST_RETRY_WAIT` | 30 | Seconds before retrying a web BLAST request NCBI refused (×attempt) |
 | `RNACENTRAL_REQUEST_DELAY` | 2.0 | Delay between RNAcentral requests in seconds |
 | `RNACENTRAL_MAX_RETRIES` | 3 | Retries on HTTP 429/5xx/network errors |
 | `RNACENTRAL_TIMEOUT` | 30 | RNAcentral request timeout in seconds |
@@ -213,14 +265,20 @@ python3 validate_stockholm.py --fix --output-mode stdout file.so
 
 # Fix with known Rfam family filtering
 python3 validate_stockholm.py -v --fix --cm-db Rfam.cm file.sto
+
+# Fix with local BLAST against nt, writing file_corrected.sto and file_Report.txt
+python3 validate_stockholm.py -v --fix --output-mode file --local --blast-db /path/to/blastdb/nt --threads 16 file.sto
 ```
 
 ### Continuous Integration
 
-The repository includes a GitHub Action that automatically validates Stockholm files in pull requests. The CI check will:
-- Trigger when a PR modifies `.so`, `.sto`, or `.stk` files
-- Run the validation script on all changed files
-- Pass only if all files are valid
+**Curating alignments** (`validate-stockholm.yml`): push a Stockholm file (`.so`, `.sto`, `.stk`, `.stockholm`) to the `alignments/` folder on any branch except `main`. The workflow runs `validate_stockholm.py -v --fix --cm-db models/15.1/Rfam.cm` on each new or changed file (web BLAST, not `--local`) and commits the `_corrected` file and `_Report.txt` back to the branch, next to the input. Files outside `alignments/` are ignored.
+
+**Tests** (`tests.yml`): on every push and pull request, except pushes that only change `alignments/`, the validator is run on the small files in `tests/fixtures/`:
+- `valid/`, `invalid/`, `fixable/`: validation only, offline. Each file checks one case, such as a missing `//` or a duplicate sequence, for the expected exit code and message.
+- `fix/`: one `--fix` run on two real sequences plus a duplicate and a shifted, wrong overlapping copy, which must be the one removed. It looks up two sequences at NCBI (no BLAST search), so it takes seconds.
+
+Run the tests locally with `uv run pytest`, or `uv run pytest -m "not network"` to skip the NCBI test. When adding a fixture to `valid/`, `invalid/` or `fixable/`, add its expected result to `tests/test_validator.py`; a test fails if a fixture is not listed.
 
 ### Stockholm Format Reference
 
@@ -245,4 +303,4 @@ When releasing a new version, update `VERSION`, `version` and `date-released` in
 
 ## Contact us
 
-If you have any questions or feedback, feel free to submit a GitHub issue or [email us](https://docs.rfam.org/en/latest/).
+If you have any questions or feedback, feel free to submit a GitHub issue or [email us](https://docs.rfam.org/contact-us.html).
