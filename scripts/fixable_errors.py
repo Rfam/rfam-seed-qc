@@ -33,7 +33,9 @@ class LocalBlastError(RunAbortError):
 
 
 class NCBIUnavailableError(RunAbortError):
-    """NCBI kept refusing requests (HTTP 429 rate limit or 5xx) after retries."""
+    """NCBI could not be used: it kept refusing requests (HTTP 429 rate limit
+    or 5xx), could not be reached at all (no connection, DNS, timeouts), or
+    rejected the API key."""
 
 
 class CacheError(RunAbortError):
@@ -241,11 +243,15 @@ def get_fasta_file(identifier, max_retries=3):
     cache by older versions are discarded and re-downloaded.
 
     Downloads use Python's urllib (no external curl/wget needed). A network
-    failure is reported as RuntimeError, never as a missing accession.
+    failure is never reported as a missing accession.
 
     Raises:
         AccessionNotFoundError: NCBI says the identifier does not exist.
-        RuntimeError: download kept failing.
+        NCBIUnavailableError: NCBI kept refusing requests, could not be
+            reached, or rejected the API key (stops the run).
+        CacheError: the sequence cache cannot be written (stops the run).
+        RuntimeError: any other failure that persists after the retries,
+            such as a reply that is not FASTA.
     """
     import http.client
     import shutil
@@ -662,8 +668,10 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
             if rnacentral.is_rnacentral_id(record.id):
                 # Not an NCBI accession; skip straight to BLAST
                 raise LookupError("RNAcentral id, NCBI lookup skipped")
-            # Inside the try: a download that exhausts its retries raises, and
-            # that must cost only this sequence, not the whole run.
+            # Inside the try: a record that is missing or unreadable costs
+            # only this sequence. Errors that say nothing about the sequence
+            # (NCBI unreachable, cache not writable) stop the run instead, via
+            # the RunAbortError clause below.
             fasta_file = get_fasta_file(record.id)
             fasta = SeqIO.read(fasta_file, "fasta")
 
