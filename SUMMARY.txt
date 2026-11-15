@@ -69,3 +69,4 @@ Configuration (scripts/config.py):
   - CMSCAN_MAX_EVALUE = 1e-3      (maximum e-value for cmscan known-family warnings)
   - NCBI_REQUEST_DELAY = 0.5      (delay between NCBI requests in seconds; 0.1 with an API key)
   - NCBI_API_KEY                  (optional, from the NCBI_API_KEY environment variable; never stored in the repo)
+  - RFAM_SEED_QC_CACHE            (environment variable: sequence cache folder; default ~/.cache/rfam-seed-qc/fasta)

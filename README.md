@@ -60,6 +60,16 @@ NCBI allows 3 requests per second per IP address. On clusters, many users share 
 export NCBI_API_KEY=your_key_here
 ```
 
+#### Sequence cache
+
+With `--fix`, sequences downloaded from NCBI (or read from the local database with `--local`) are cached, so later runs don't fetch them again. The cache is in `~/.cache/rfam-seed-qc/fasta` (or under `$XDG_CACHE_HOME`). To use another folder, for example where a home quota is small, set:
+
+```bash
+export RFAM_SEED_QC_CACHE=/path/to/rfam-seed-qc-cache
+```
+
+Records can be large (a whole genome or chromosome per accession), so allow several GB. The folder can be deleted at any time. If it cannot be written (read-only, full or over quota), the run stops with an error rather than removing sequences it could not check.
+
 #### Local BLAST
 
 NCBI's web BLAST searches `core_nt` even when asked for `nt`, and each search can wait minutes in NCBI's queue. With `--local`, searches run on your machine against the full `nt`, using all available CPUs. Both modes use the same blastn settings, so `--local` is not more sensitive, but it is more complete: a sequence that is only in `nt` can be rescued with `--local` but not by the web search. Download the database once. In November 2026 `nt` was 1.1 TB to download and 1.3 TB on disk; check the current size first with `update_blastdb.pl --source ncbi --showall pretty | grep -w nt`:

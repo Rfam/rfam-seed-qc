@@ -4,6 +4,7 @@ Fixable error handlers for Stockholm files.
 These errors can be automatically corrected.
 """
 
+import errno
 import io
 import os
 import random
@@ -33,6 +34,79 @@ class LocalBlastError(RunAbortError):
 
 class NCBIUnavailableError(RunAbortError):
     """NCBI kept refusing requests (HTTP 429 rate limit or 5xx) after retries."""
+
+
+class CacheError(RunAbortError):
+    """The sequence cache folder cannot be written (read-only, full or over quota)."""
+
+
+# Errors from writing a file that mean the cache folder is unusable. Permission
+# errors count only when they name a file, so a refused network connection is
+# never mistaken for a cache problem.
+_DISK_FULL_ERRNOS = {errno.ENOSPC, errno.EROFS, getattr(errno, 'EDQUOT', errno.ENOSPC)}
+
+
+def _is_cache_write_error(e):
+    if not isinstance(e, OSError):
+        return False
+    if e.errno in _DISK_FULL_ERRNOS:
+        return True
+    return e.errno in (errno.EACCES, errno.EPERM) and getattr(e, 'filename', None) is not None
+
+
+def _cache_error(e, folder):
+    return CacheError(
+        f"Cannot write to the sequence cache folder {folder} ({e.strerror or e}). "
+        f"Set RFAM_SEED_QC_CACHE to a writable folder with free space")
+
+
+_cache_folder = []   # resolved once per run
+
+
+def _cache_dir():
+    """Folder where downloaded and local-database records are cached.
+
+    $RFAM_SEED_QC_CACHE if set, else $XDG_CACHE_HOME/rfam-seed-qc/fasta
+    (default ~/.cache/rfam-seed-qc/fasta). Kept outside the install folder,
+    which is read-only in containers and shared installs. If it cannot be
+    written the run stops: otherwise every lookup would fail and valid
+    sequences would be removed as "not found".
+    """
+    if _cache_folder:
+        return _cache_folder[0]
+    import tempfile
+    folder = os.environ.get('RFAM_SEED_QC_CACHE', '').strip()
+    if not folder:
+        base = (os.environ.get('XDG_CACHE_HOME', '').strip()
+                or os.path.join(os.path.expanduser('~'), '.cache'))
+        folder = os.path.join(base, 'rfam-seed-qc', 'fasta')
+    folder = os.path.abspath(os.path.expanduser(folder))
+    try:
+        os.makedirs(folder, exist_ok=True)
+        fd, probe = tempfile.mkstemp(dir=folder, suffix='.part')
+        os.close(fd)
+        os.remove(probe)
+    except OSError as e:
+        raise _cache_error(e, folder) from e
+    _cache_folder.append(folder)
+    return folder
+
+
+def _cache_tempfile(folder):
+    """Temporary file in the cache folder; a write failure stops the run."""
+    import tempfile
+    try:
+        return tempfile.mkstemp(dir=folder, suffix='.part')
+    except OSError as e:
+        raise _cache_error(e, folder) from e
+
+
+def _cache_store(tmp_path, fasta_file):
+    """Move a finished download into place (atomic); a failure stops the run."""
+    try:
+        os.replace(tmp_path, fasta_file)
+    except OSError as e:
+        raise _cache_error(e, os.path.dirname(fasta_file)) from e
 
 
 def _ncbi_refused(e):
@@ -116,10 +190,9 @@ def _fetch_local(identifier, fasta_file, fasta_folder):
     index, I/O error): treating those as "not found" could remove valid
     sequences, so the run stops instead.
     """
-    import tempfile
     if ',' in identifier:
         return False  # blastdbcmd -entry would read a comma as a list of entries
-    fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
+    fd, tmp_path = _cache_tempfile(fasta_folder)
     try:
         with os.fdopen(fd, 'wb') as out:
             proc = subprocess.run(
@@ -127,7 +200,7 @@ def _fetch_local(identifier, fasta_file, fasta_folder):
                  '-target_only', '-outfmt', '%f'],
                 stdout=out, stderr=subprocess.PIPE, text=True)
         if proc.returncode == 0 and _is_fasta_file(tmp_path):
-            os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
+            _cache_store(tmp_path, fasta_file)  # atomic: cache only valid FASTA
             return True
         if 'Entry not found' in proc.stderr:
             return False
@@ -161,13 +234,10 @@ def get_fasta_file(identifier, max_retries=3):
     """
     import http.client
     import shutil
-    import tempfile
     import urllib.error
     import urllib.request
 
-    script_location = os.path.dirname(os.path.abspath(__file__))
-    fasta_folder = os.path.join(script_location, 'fasta')
-    os.makedirs(fasta_folder, exist_ok=True)
+    fasta_folder = _cache_dir()
     fasta_file = os.path.join(fasta_folder, identifier + '.fasta')
 
     # A versioned accession (AF228364.1) never changes sequence, so its cached
@@ -205,7 +275,7 @@ def get_fasta_file(identifier, max_retries=3):
     for attempt in range(1, max_retries + 1):
         time.sleep(config.NCBI_REQUEST_DELAY_WITH_KEY if config.NCBI_API_KEY
                    else config.NCBI_REQUEST_DELAY)
-        fd, tmp_path = tempfile.mkstemp(dir=fasta_folder, suffix='.part')
+        fd, tmp_path = _cache_tempfile(fasta_folder)
         os.close(fd)
         wait = 2 * attempt  # backoff before retry
         try:
@@ -239,10 +309,14 @@ def get_fasta_file(identifier, max_retries=3):
             except (http.client.HTTPException, OSError, ValueError) as e:
                 # OSError: URLError, timeouts, connection resets.
                 # HTTPException: IncompleteRead, RemoteDisconnected.
+                if _is_cache_write_error(e):
+                    # Disk full or over quota while saving: not a network
+                    # problem, and retrying or skipping would drop sequences
+                    raise _cache_error(e, fasta_folder) from e
                 last_error = e
 
             if ok and _is_fasta_file(tmp_path):
-                os.replace(tmp_path, fasta_file)  # atomic: cache only valid FASTA
+                _cache_store(tmp_path, fasta_file)  # atomic: cache only valid FASTA
                 return fasta_file
             if ok and os.path.getsize(tmp_path) > 0:
                 # NCBI answers an unknown id with HTTP 200 and an 'Error: ...'

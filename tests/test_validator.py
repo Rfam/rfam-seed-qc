@@ -9,7 +9,9 @@ Run all:          uv run pytest
 Offline only:     uv run pytest -m "not network"
 """
 
+import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -21,11 +23,17 @@ SCRIPT = REPO / 'validate_stockholm.py'
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
 
 
-def run_validator(*args, cwd=None, timeout=60):
-    """Run the validator and return (exit code, combined output)."""
+def run_validator(*args, cwd=None, timeout=60, cache=None):
+    """Run the validator and return (exit code, combined output).
+
+    cache: folder for RFAM_SEED_QC_CACHE (default: the user's normal cache).
+    """
+    env = dict(os.environ)
+    if cache is not None:
+        env['RFAM_SEED_QC_CACHE'] = str(cache)
     result = subprocess.run(
         [sys.executable, str(SCRIPT), *map(str, args)],
-        capture_output=True, text=True, cwd=cwd, timeout=timeout,
+        capture_output=True, text=True, cwd=cwd, timeout=timeout, env=env,
     )
     return result.returncode, result.stdout + result.stderr
 
@@ -95,8 +103,11 @@ def test_fix_removes_duplicate_and_overlap(tmp_path):
     src = FIXTURES / 'fix/duplicate_and_overlap.sto'
     shutil.copy(src, tmp_path / src.name)   # outputs go next to the input
 
-    code, output = run_validator('-v', '--fix', src.name, cwd=tmp_path, timeout=300)
+    cache = tmp_path / 'cache'
+    code, output = run_validator('-v', '--fix', src.name, cwd=tmp_path, timeout=300, cache=cache)
     assert code == 0, output
+    assert list(cache.glob('*.fasta')), 'downloads were not cached in RFAM_SEED_QC_CACHE'
+
     assert 'Removed 1 duplicate sequence(s)' in output, output
     assert 'Found 1 overlapping sequence(s) to remove' in output, output
     assert 'AC104446.2/142001-142075' not in output.split('Found 1 overlapping')[1], output
@@ -119,3 +130,24 @@ def test_fix_removes_duplicate_and_overlap(tmp_path):
     code, output = run_validator('-v', corrected)
     assert code == 0, output
     assert 'Valid Stockholm file' in output and 'fixable issues' not in output, output
+
+
+@pytest.mark.skipif(hasattr(os, 'geteuid') and os.geteuid() == 0,
+                    reason='root can write to read-only folders')
+def test_fix_stops_if_cache_is_not_writable(tmp_path):
+    """A cache that cannot be written must stop the run, not make every
+    lookup fail and remove valid sequences as "not found". Offline: the run
+    stops before the first download."""
+    src = FIXTURES / 'fix/duplicate_and_overlap.sto'
+    shutil.copy(src, tmp_path / src.name)
+    cache = tmp_path / 'cache'
+    cache.mkdir()
+    cache.chmod(stat.S_IRUSR | stat.S_IXUSR)   # read-only
+    try:
+        code, output = run_validator('--fix', src.name, cwd=tmp_path, cache=cache)
+    finally:
+        cache.chmod(stat.S_IRWXU)
+    assert code != 0, output
+    assert 'Set RFAM_SEED_QC_CACHE' in output, output
+    assert 'Stopping so no sequence is removed by mistake' in output, output
+    assert not (tmp_path / 'duplicate_and_overlap_corrected.sto').exists(), output
