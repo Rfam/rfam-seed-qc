@@ -219,10 +219,18 @@ def _accession_hint(seq_name):
     NZ_CP176678.1_2667588. Used to prefer the submitter's own record.
 
     Returns:
-        (core, candidates) or None. core is as in _accession_core; candidates
-        are the accessions to look up, GenBank form first (CP176678.1, then
-        NZ_CP176678.1). None for names that do not start with an accession
-        (species names, RNAcentral ids).
+        (core, candidates, start) or None.
+        core: as in _accession_core (CP176678).
+        candidates: the accessions to look up, GenBank form first, then the
+            name's own form, then unversioned (CP176678.1, NZ_CP176678.1,
+            CP176678), in case the database holds another version. A
+            different version is safe to use: the sequence must still match
+            it exactly.
+        start: the number after the accession when the name is just
+            ACCESSION_NUMBER (2667588), else None. It is only used when an
+            exact match starts exactly there (see _locate_in_record).
+        None for names that do not start with an accession (species names,
+        RNAcentral ids).
     """
     accession = parse_sequence_identifier(seq_name)[0]
     if rnacentral.is_rnacentral_id(accession):
@@ -233,10 +241,16 @@ def _accession_hint(seq_name):
     version = f'.{m.group(2)}' if m.group(2) else ''
     named = m.group(1) + version
     core = _accession_core(m.group(1))
-    candidates = [core + version]
-    if named not in candidates:
-        candidates.append(named)
-    return core, candidates
+    candidates = []
+    for candidate in (core + version, named, core):
+        if candidate not in candidates:
+            candidates.append(candidate)
+    start = None
+    if seq_name == accession:  # no /coordinates in the name
+        number = re.fullmatch(r'_(\d+)', accession[m.end():])
+        if number and int(number.group(1)) > 0:
+            start = int(number.group(1))
+    return core, candidates, start
 
 
 def _fetch_local(identifier, fasta_file, fasta_folder):
@@ -453,7 +467,7 @@ def _hit_accession(alignment):
 
 
 def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None,
-                 exact_only=False, prefer_accession=None):
+                 exact_only=False, prefer_accession=None, prefer_start=None):
     """
     Perform BLAST search for a sequence that couldn't be found directly.
 
@@ -472,6 +486,10 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             chosen over exact matches from other records, which are often
             other species with an identical sequence. It never wins over an
             exact match with an inexact one.
+        prefer_start: The number in a name such as NZ_CP176678.1_2667588.
+            Among exact matches from prefer_accession, one whose start (as
+            written in the name, so the higher coordinate on the reverse
+            strand) is exactly this number is chosen; otherwise the first.
 
     Returns:
         tuple: (accession_with_coords, is_accurate) or (None, False) if no good hit
@@ -564,11 +582,14 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
         #      gaps, whole query): only exact matches survive the later
         #      NCBI/MD5 check, and the exact one is not always listed first;
         #   3. unless exact_only, the first acceptable hit in BLAST's order.
-        # Within one record, the first exact match in BLAST's order is used.
+        # Within that record, an exact match starting exactly at prefer_start
+        # is used if there is one (the copy the submitter named), otherwise
+        # the first in BLAST's order.
         prefer_core = _accession_core(prefer_accession) if prefer_accession else None
         first_ok = None
         first_exact = None
         preferred = None
+        preferred_at_start = None
         n_exact = 0
         for alignment in blast_record.alignments:
             accession = _hit_accession(alignment)
@@ -592,18 +613,24 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                     n_exact += 1
                     if first_exact is None:
                         first_exact = hit
-                    if (preferred is None and prefer_core
-                            and _accession_core(accession) == prefer_core):
-                        preferred = hit
+                    if prefer_core and _accession_core(accession) == prefer_core:
+                        if preferred is None:
+                            preferred = hit
+                        if (preferred_at_start is None and prefer_start is not None
+                                and hsp.sbjct_start == prefer_start):
+                            preferred_at_start = hit
 
+        preferred = preferred_at_start or preferred
         chosen = preferred or first_exact or (None if exact_only else first_ok)
         if chosen:
             new_accession, identity, coverage, evalue = chosen
             if verbose:
                 print(f"    BLAST hit: {new_accession} (identity={identity:.1f}%, coverage={coverage:.1f}%, e={evalue:.2e})")
                 if preferred:
-                    print(f"    Chosen as an exact match from the named accession {prefer_core} "
-                          f"({n_exact} exact match(es) in total)")
+                    where = (f" starting at {prefer_start}" if preferred is preferred_at_start
+                             else "")
+                    print(f"    Chosen as an exact match from the named accession {prefer_core}"
+                          f"{where} ({n_exact} exact match(es) in total)")
                 elif prefer_core and first_exact:
                     print(f"    No exact match from the named accession {prefer_core} among the "
                           f"{n_exact} exact match(es); using the first one")
@@ -656,10 +683,16 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                 pass
 
 
-def _locate_in_record(identifier, ungapped, allow_ncbi=True):
+def _locate_in_record(identifier, ungapped, allow_ncbi=True, start=None):
     """
-    Find an ungapped sequence in a record (forward strand first, then reverse
-    complement; the first occurrence if there are several).
+    Find an ungapped sequence in a record.
+
+    If start is given (the number in a name such as NZ_CP176678.1_2667588)
+    and an exact match begins exactly there, on either strand, that match is
+    used: a sequence can occur more than once in a genome, and this is the
+    copy the submitter named. The number is never used otherwise (no nearest
+    match): if no match begins there, the first occurrence is used, forward
+    strand first, then reverse complement.
 
     Returns:
         'ACCESSION/START-END' (START > END on the reverse strand), or None if
@@ -678,12 +711,23 @@ def _locate_in_record(identifier, ungapped, allow_ncbi=True):
 
     # Convert RNA to DNA for matching
     s1 = Seq(ungapped).back_transcribe()
-    start = fasta.seq.find(s1)
-    if start != -1:
-        return f'{identifier}{version}/{start + 1}-{start + len(s1)}'
-    start = fasta.seq.find(s1.reverse_complement())
-    if start != -1:
-        return f'{identifier}{version}/{start + len(s1)}-{start + 1}'
+    s2 = s1.reverse_complement()
+    n = len(s1)
+    name = f'{identifier}{version}'
+
+    if start is not None:
+        # Forward strand: START-(START+n-1); reverse strand: START-(START-n+1)
+        if fasta.seq[start - 1:start - 1 + n] == s1:
+            return f'{name}/{start}-{start + n - 1}'
+        if start >= n and fasta.seq[start - n:start] == s2:
+            return f'{name}/{start}-{start - n + 1}'
+
+    pos = fasta.seq.find(s1)
+    if pos != -1:
+        return f'{name}/{pos + 1}-{pos + n}'
+    pos = fasta.seq.find(s2)
+    if pos != -1:
+        return f'{name}/{pos + n}-{pos + 1}'
     return None
 
 
@@ -691,8 +735,9 @@ def _find_in_named_accession(seq_name, hint, ungapped, verbose=False):
     """
     Look for the sequence in the accession its name starts with (hint from
     _accession_hint), trying the GenBank form first (CP176678.1, then
-    NZ_CP176678.1). Names that are themselves the accession were already
-    looked up directly and are skipped.
+    NZ_CP176678.1, then unversioned CP176678). Names that are themselves the
+    accession were already looked up directly and are skipped. A number
+    after the accession picks the copy only as in _locate_in_record.
 
     With --local only the local database is used: these lookups are a
     shortcut before BLAST, and must not make offline runs depend on NCBI.
@@ -705,11 +750,12 @@ def _find_in_named_accession(seq_name, hint, ungapped, verbose=False):
     """
     if not hint:
         return None
-    for candidate in hint[1]:
+    _, candidates, start = hint
+    for candidate in candidates:
         if candidate == seq_name:
             continue
         try:
-            found = _locate_in_record(candidate, ungapped,
+            found = _locate_in_record(candidate, ungapped, start=start,
                                       allow_ncbi=not config.BLAST_LOCAL_DB)
         except RunAbortError:
             raise
@@ -789,10 +835,21 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
             if verbose:
                 print(f"  {record.id}: sequence not found in RNAcentral entry")
 
+        # A name that starts with an accession followed by other text
+        # (NZ_CP176678.1_2667588) is not an NCBI record: the accession in it
+        # is looked up instead (below). Without --local the whole name is not
+        # sent to NCBI (a wasted request that always fails); with --local it
+        # is still tried, as a custom database may hold records named that
+        # way, but its expected failure is not reported.
+        hint = _accession_hint(record.id)
+        named_only = hint is not None and not _ACCESSION_RE.match(record.id)
+
         try:
             if rnacentral.is_rnacentral_id(record.id):
                 # Not an NCBI accession; skip straight to BLAST
                 raise LookupError("RNAcentral id, NCBI lookup skipped")
+            if named_only and not config.BLAST_LOCAL_DB:
+                raise LookupError("not an accession, looking up the accession in the name")
             # Inside the try: a record that is missing or unreadable costs
             # only this sequence. Errors that say nothing about the sequence
             # (NCBI unreachable, cache not writable) stop the run instead, via
@@ -807,14 +864,13 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
         except RunAbortError:
             raise  # broken local database or NCBI refusing: stop, don't drop the sequence
         except Exception as e:
-            if verbose:
+            if verbose and not named_only:
                 print(f"  Warning: Could not read fasta for {record.id}: {e}")
 
         # The name may start with an accession followed by other text
         # (NZ_CP176678.1_2667588): look for the sequence in that record before
         # BLAST, which may list identical copies from other species first, or
         # not list this record at all among BLAST_HITLIST_SIZE hits.
-        hint = _accession_hint(record.id)
         new_accession = _find_in_named_accession(record.id, hint, ungapped, verbose)
         if new_accession:
             if verbose:
@@ -832,7 +888,8 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
             # fail validation, and repeat this same BLAST search for nothing.
             blast_result, is_accurate = blast_search(
                 ungapped, verbose=verbose, exact_only=True,
-                prefer_accession=hint[0] if hint else None)
+                prefer_accession=hint[0] if hint else None,
+                prefer_start=hint[2] if hint else None)
 
             if is_accurate and blast_result:
                 if verbose:

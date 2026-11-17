@@ -4,8 +4,9 @@ Offline tests: when a sequence name starts with an accession
 from other records, first by looking in the record directly, then among the
 exact BLAST matches.
 
-The BLAST output is tests/fixtures/blast/exact_hit.xml with one more exact hit
-(CP176678.1) added after the others, so it is not BLAST's first choice.
+The BLAST output is tests/fixtures/blast/exact_hit.xml with exact hits from
+CP176678.1 added after the others, so they are not BLAST's first choice: one
+copy at 2001-2076 and a second copy, on the reverse strand, at 5076-5001.
 """
 
 import re
@@ -28,14 +29,17 @@ NAME = 'NZ_CP176678.1_2667588'
 
 
 def _two_exact_hits_xml():
-    """exact_hit.xml plus a third hit, CP176678.1, also an exact match."""
+    """exact_hit.xml plus two exact copies in CP176678.1."""
     xml = (BLAST / 'exact_hit.xml').read_text()
     first = re.search(r'<Hit>.*?</Hit>\n', xml, re.S).group(0)
-    extra = (first.replace('<Hit_num>1</Hit_num>', '<Hit_num>3</Hit_num>')
-             .replace('gb|AAYZ01025109.1|', 'gb|CP176678.1|')
-             .replace('<Hit_accession>AAYZ01025109', '<Hit_accession>CP176678')
-             .replace('<Hsp_hit-from>988<', '<Hsp_hit-from>2001<')
-             .replace('<Hsp_hit-to>1063<', '<Hsp_hit-to>2076<'))
+
+    def copy(num, hit_from, hit_to):
+        return (first.replace('<Hit_num>1</Hit_num>', f'<Hit_num>{num}</Hit_num>')
+                .replace('gb|AAYZ01025109.1|', 'gb|CP176678.1|')
+                .replace('<Hit_accession>AAYZ01025109', '<Hit_accession>CP176678')
+                .replace('<Hsp_hit-from>988<', f'<Hsp_hit-from>{hit_from}<')
+                .replace('<Hsp_hit-to>1063<', f'<Hsp_hit-to>{hit_to}<'))
+    extra = copy(3, 2001, 2076) + copy(4, 5076, 5001)
     return xml.replace('</Iteration_hits>', extra + '</Iteration_hits>')
 
 
@@ -55,11 +59,13 @@ def blastn(monkeypatch):
 
 
 @pytest.mark.parametrize('name, expected', [
-    ('NZ_CP176678.1_2667588', ('CP176678', ['CP176678.1', 'NZ_CP176678.1'])),
-    ('CP061243.1_2605127', ('CP061243', ['CP061243.1'])),
-    ('CP061243.1/1-84', ('CP061243', ['CP061243.1'])),
-    ('AC104446', ('AC104446', ['AC104446'])),
-    ('NC_000913.3_100', ('NC_000913', ['NC_000913.3'])),
+    ('NZ_CP176678.1_2667588', ('CP176678', ['CP176678.1', 'NZ_CP176678.1', 'CP176678'], 2667588)),
+    ('CP061243.1_2605127', ('CP061243', ['CP061243.1', 'CP061243'], 2605127)),
+    ('CP061243.1/1-84', ('CP061243', ['CP061243.1', 'CP061243'], None)),
+    ('CP061243.1_12_extra', ('CP061243', ['CP061243.1', 'CP061243'], None)),
+    ('CP061243.1_0', ('CP061243', ['CP061243.1', 'CP061243'], None)),
+    ('AC104446', ('AC104446', ['AC104446'], None)),
+    ('NC_000913.3_100', ('NC_000913', ['NC_000913.3', 'NC_000913'], 100)),
     ('Ochotona_princeps', None),
     ('URS0000572555_562', None),
     ('CP0612435abc', None),
@@ -75,7 +81,23 @@ def test_first_exact_hit_without_preference(blastn):
 def test_exact_hit_from_named_accession_preferred(blastn, capsys):
     assert fixable_errors.blast_search(QUERY, verbose=True, exact_only=True,
                                        prefer_accession='NZ_CP176678.1') == (SOURCE_HIT, True)
-    assert 'exact match from the named accession CP176678 (2 exact match(es)' in capsys.readouterr().out
+    assert 'exact match from the named accession CP176678 (3 exact match(es)' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('start, expected', [
+    (5076, 'CP176678.1/5076-5001'),   # the second copy starts exactly there
+    (None, SOURCE_HIT),               # no number: first copy
+    (5000, SOURCE_HIT),               # no copy starts there: first, not nearest
+])
+def test_named_start_picks_the_copy(blastn, start, expected):
+    assert fixable_errors.blast_search(QUERY, exact_only=True, prefer_accession='CP176678',
+                                       prefer_start=start) == (expected, True)
+
+
+def test_named_start_alone_does_not_prefer_other_records(blastn):
+    """AAYZ01025109.1 starts at 988, but is not the named accession."""
+    assert fixable_errors.blast_search(QUERY, exact_only=True, prefer_accession='CP176678',
+                                       prefer_start=988) == (SOURCE_HIT, True)
 
 
 def test_inexact_hit_from_named_accession_never_wins(blastn):
@@ -112,6 +134,68 @@ def test_missing_coordinates_found_in_named_accession(blastn, monkeypatch, tmp_p
 
     assert mapping == {NAME: 'CP176678.1/6-81'} and not to_remove
     assert asked == [(NAME, True), ('CP176678.1', False)]
+    assert not blastn
+
+
+def _two_copies(tmp_path, name='CP176678.1'):
+    """Forward copy at 6-81, reverse-strand copy at 200-125."""
+    from Bio.Seq import Seq
+    seq = 'AAAAA' + QUERY + 'C' * 43 + str(Seq(QUERY).reverse_complement()) + 'CCCC'
+    return _fasta(tmp_path, name, seq)
+
+
+@pytest.mark.parametrize('name, expected', [
+    ('NZ_CP176678.1_200', 'CP176678.1/200-125'),   # reverse copy starts at 200
+    ('NZ_CP176678.1_6', 'CP176678.1/6-81'),        # forward copy starts at 6
+    ('NZ_CP176678.1_150', 'CP176678.1/6-81'),      # neither: first, not nearest
+    ('NZ_CP176678.1_199', 'CP176678.1/6-81'),      # off by one: not used
+])
+def test_number_in_name_picks_the_copy(blastn, monkeypatch, tmp_path, name, expected):
+    record = _two_copies(tmp_path)
+
+    def get_fasta_file(identifier, **kwargs):
+        if identifier == 'CP176678.1':
+            return record
+        raise fixable_errors.AccessionNotFoundError(identifier)
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', get_fasta_file)
+
+    mapping, _ = fixable_errors.fix_missing_coordinates(_sto(tmp_path, name))
+    assert mapping == {name: expected}
+    assert not blastn
+
+
+def test_web_mode_does_not_look_up_the_whole_name(monkeypatch, tmp_path):
+    """Without --local, NZ_CP176678.1_2667588 is never sent to NCBI."""
+    monkeypatch.setattr(config, 'BLAST_LOCAL_DB', None)
+    record = _fasta(tmp_path, 'CP176678.1', 'AAAAA' + QUERY)
+    asked = []
+
+    def get_fasta_file(identifier, allow_ncbi=True, **kwargs):
+        asked.append((identifier, allow_ncbi))
+        return record
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', get_fasta_file)
+
+    mapping, _ = fixable_errors.fix_missing_coordinates(_sto(tmp_path, NAME))
+    assert mapping == {NAME: 'CP176678.1/6-81'}
+    assert asked == [('CP176678.1', True)]
+
+
+def test_other_version_of_named_accession(blastn, monkeypatch, tmp_path):
+    """The database holds CP176678.2, not the CP176678.1 in the name: the
+    unversioned lookup finds it, and the sequence must still match exactly."""
+    record = _fasta(tmp_path, 'CP176678.2', 'AAAAA' + QUERY)
+    asked = []
+
+    def get_fasta_file(identifier, **kwargs):
+        asked.append(identifier)
+        if identifier == 'CP176678':
+            return record
+        raise fixable_errors.AccessionNotFoundError(identifier)
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', get_fasta_file)
+
+    mapping, _ = fixable_errors.fix_missing_coordinates(_sto(tmp_path, NAME))
+    assert mapping == {NAME: 'CP176678.2/6-81'}
+    assert asked == [NAME, 'CP176678.1', 'NZ_CP176678.1', 'CP176678']
     assert not blastn
 
 
