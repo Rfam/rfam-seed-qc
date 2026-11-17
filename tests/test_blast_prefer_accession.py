@@ -236,3 +236,69 @@ def test_validation_blast_fallback_prefers_named_accession(blastn, monkeypatch, 
     invalid, _, _, blast_fixed = fixable_errors.validate_sequences_against_ncbi([(name, QUERY)])
 
     assert blast_fixed == {name: SOURCE_HIT} and not invalid
+
+
+@pytest.fixture(autouse=True)
+def reset_ncbi_flag(monkeypatch):
+    """The 'NCBI unusable for names' flag lasts a run; start each test clean."""
+    monkeypatch.setattr(fixable_errors, '_named_ncbi_unavailable', [False])
+
+
+def test_local_mode_fetches_named_accession_missing_from_local_db(blastn, monkeypatch, tmp_path):
+    """NC_ records are not in nt: after every local form misses, NCBI is
+    asked, and BLAST is not needed."""
+    record = _fasta(tmp_path, 'NC_002695.2', 'AAAAA' + QUERY)
+    asked = []
+
+    def get_fasta_file(identifier, allow_ncbi=True, **kwargs):
+        asked.append((identifier, allow_ncbi))
+        if identifier == 'NC_002695.2' and allow_ncbi:
+            return record
+        raise fixable_errors.AccessionNotFoundError(identifier)
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', get_fasta_file)
+
+    name = 'NC_002695.2_6'
+    mapping, _ = fixable_errors.fix_missing_coordinates(_sto(tmp_path, name))
+
+    assert mapping == {name: 'NC_002695.2/6-81'}
+    assert asked == [(name, True),                                   # whole name, local db
+                     ('NC_002695.2', False), ('NC_002695', False),  # local first
+                     ('NC_002695.2', True)]                          # then NCBI
+    assert not blastn
+
+
+def test_local_mode_ncbi_unusable_falls_back_to_blast_once(blastn, monkeypatch, tmp_path, capsys):
+    """NCBI unreachable while fetching an accession from a name: the row goes
+    to BLAST (no stop), and later rows do not try NCBI again."""
+    ncbi_calls = []
+
+    def get_fasta_file(identifier, allow_ncbi=True, **kwargs):
+        # Like the real one: only accession-shaped ids ever reach NCBI
+        if allow_ncbi and fixable_errors._ACCESSION_RE.match(identifier):
+            ncbi_calls.append(identifier)
+            raise fixable_errors.NCBIUnavailableError('Could not reach NCBI')
+        raise fixable_errors.AccessionNotFoundError(identifier)
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', get_fasta_file)
+
+    rna = QUERY.replace('T', 'U')
+    sto = tmp_path / 'input.sto'
+    sto.write_text(f'# STOCKHOLM 1.0\n\nNC_002695.2_6 {rna}\nNC_002695.2_150 {rna}\n//\n')
+    mapping, to_remove = fixable_errors.fix_missing_coordinates(str(sto))
+
+    assert mapping == {'NC_002695.2_6': FIRST_EXACT, 'NC_002695.2_150': FIRST_EXACT}
+    assert not to_remove
+    assert ncbi_calls == ['NC_002695.2']
+    assert len(blastn) == 2
+    assert capsys.readouterr().out.count('NCBI cannot be used') == 1
+
+
+def test_web_mode_ncbi_unusable_still_stops(monkeypatch, tmp_path):
+    """Without --local, NCBI is needed for BLAST too: the run stops as before."""
+    monkeypatch.setattr(config, 'BLAST_LOCAL_DB', None)
+
+    def down(identifier, **kwargs):
+        raise fixable_errors.NCBIUnavailableError('Could not reach NCBI')
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', down)
+
+    with pytest.raises(fixable_errors.NCBIUnavailableError):
+        fixable_errors.fix_missing_coordinates(_sto(tmp_path, NAME))

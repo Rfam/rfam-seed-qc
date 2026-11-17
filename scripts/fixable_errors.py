@@ -731,6 +731,12 @@ def _locate_in_record(identifier, ungapped, allow_ncbi=True, start=None):
     return None
 
 
+# Set when NCBI cannot be used for lookups of accessions taken from names in
+# --local mode, so the rest of the run does not wait on it again (see
+# _find_in_named_accession). One-element list: module state shared by files.
+_named_ncbi_unavailable = [False]
+
+
 def _find_in_named_accession(seq_name, hint, ungapped, verbose=False):
     """
     Look for the sequence in the accession its name starts with (hint from
@@ -739,8 +745,13 @@ def _find_in_named_accession(seq_name, hint, ungapped, verbose=False):
     accession were already looked up directly and are skipped. A number
     after the accession picks the copy only as in _locate_in_record.
 
-    With --local only the local database is used: these lookups are a
-    shortcut before BLAST, and must not make offline runs depend on NCBI.
+    With --local, every form is first looked up in the local database. Only
+    if none is there (e.g. RefSeq NC_ records, which nt lacks) are they
+    fetched from NCBI. If NCBI cannot be used (unreachable, refusing, bad
+    API key), the sequence goes on to BLAST instead of stopping the run, and
+    NCBI is not tried again for names in this run, so offline nodes wait at
+    most once. Stopping is not needed here: no sequence is removed because
+    of it, as BLAST and the exact validation still follow.
 
     Returns:
         'ACCESSION/START-END' or None.
@@ -751,22 +762,53 @@ def _find_in_named_accession(seq_name, hint, ungapped, verbose=False):
     if not hint:
         return None
     _, candidates, start = hint
-    for candidate in candidates:
-        if candidate == seq_name:
-            continue
+    candidates = [c for c in candidates if c != seq_name]
+
+    def attempt(candidate, allow_ncbi):
+        """(found, available): available is False if the record could not
+        be read, so a later NCBI pass may still try it."""
         try:
-            found = _locate_in_record(candidate, ungapped, start=start,
-                                      allow_ncbi=not config.BLAST_LOCAL_DB)
+            found = _locate_in_record(candidate, ungapped, start=start, allow_ncbi=allow_ncbi)
         except RunAbortError:
             raise
         except Exception as e:
             if verbose:
                 print(f"  {seq_name}: named accession {candidate} not available ({e})")
-            continue
+            return None, False
+        if not found and verbose:
+            print(f"  {seq_name}: sequence not found in named accession {candidate}")
+        return found, True
+
+    if not config.BLAST_LOCAL_DB:
+        for candidate in candidates:
+            found, _ = attempt(candidate, allow_ncbi=True)
+            if found:
+                return found
+        return None
+
+    # --local: the local database first, for every form
+    missing = []
+    for candidate in candidates:
+        found, available = attempt(candidate, allow_ncbi=False)
         if found:
             return found
-        if verbose:
-            print(f"  {seq_name}: sequence not found in named accession {candidate}")
+        if not available:
+            missing.append(candidate)
+    if _named_ncbi_unavailable[0]:
+        return None
+
+    # Then NCBI, for forms the local database does not have
+    for candidate in missing:
+        try:
+            found, _ = attempt(candidate, allow_ncbi=True)
+        except NCBIUnavailableError as e:
+            _named_ncbi_unavailable[0] = True
+            print(f"  Warning: NCBI cannot be used ({e}). Accessions in sequence names that "
+                  f"are not in the local database will not be fetched for the rest of this "
+                  f"run; those sequences go to BLAST")
+            return None
+        if found:
+            return found
     return None
 
 
