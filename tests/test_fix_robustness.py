@@ -22,7 +22,7 @@ def test_missing_coordinates_with_duplicate_row_and_bad_ss_cons(tmp_path, monkey
     crash here because the file was re-read with Biopython's stricter AlignIO."""
     fasta = tmp_path / 'record.fasta'
     fasta.write_text('>AC104446.2 test record\nTTTT' + SEQ.replace('U', 'T') + 'TTTT\n')
-    monkeypatch.setattr(fixable_errors, 'get_fasta_file', lambda identifier, max_retries=3: str(fasta))
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', lambda identifier, **kwargs: str(fasta))
 
     sto = tmp_path / 'input.sto'
     sto.write_text('# STOCKHOLM 1.0\n\n'

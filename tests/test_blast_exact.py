@@ -73,7 +73,7 @@ def test_missing_coordinates_need_an_exact_match(fake_blastn, monkeypatch, tmp_p
     and being searched again."""
     calls = fake_blastn(xml_name)
 
-    def not_found(identifier, max_retries=3):
+    def not_found(identifier, **kwargs):
         raise fixable_errors.AccessionNotFoundError(identifier)
     monkeypatch.setattr(fixable_errors, 'get_fasta_file', not_found)
 

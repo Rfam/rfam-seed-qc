@@ -139,8 +139,9 @@ The script can detect and remove duplicate sequences using the `--fix` flag. Dup
 When sequences are missing coordinates (e.g., `NZ_CP038662.1` instead of `NZ_CP038662.1/4723652-4723704`), the `--fix` flag will:
 
 1. **NCBI Direct Lookup**: Download the FASTA sequence from NCBI and find coordinates by matching the alignment sequence
-2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database. Only an **exact full-length match** (all bases identical, no gaps, whole sequence) gives the sequence its accession and coordinates, since only exact matches pass the final check. The closest hit is still reported (hits need >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries.
-3. **Removal**: Sequences that cannot be resolved via either method are removed from the output
+2. **Accession in the name**: If the name starts with an accession followed by other text (e.g. `NZ_CP176678.1_2667588`), look for the sequence in that record: the GenBank form first (`CP176678.1`), then the name's own form (`NZ_CP176678.1`). If the sequence occurs more than once in the record, the first occurrence is used (forward strand before reverse). With `--local`, only the local database is searched in this step, never NCBI
+3. **BLAST Fallback**: If the lookups fail, perform a BLAST search against NCBI's nucleotide database. Only an **exact full-length match** (all bases identical, no gaps, whole sequence) gives the sequence its accession and coordinates, since only exact matches pass the final check. All returned hits are examined (`BLAST_HITLIST_SIZE`), and if the name starts with an accession, an exact match from that record (ignoring version and `NZ_` prefix) is chosen over exact matches from other records, which are often other species with an identical sequence; otherwise the first exact match is used. The closest hit is still reported (hits need >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries.
+4. **Removal**: Sequences that cannot be resolved via either method are removed from the output
 
 With `--local`, the lookup and the BLAST search use the local database instead (see [Local BLAST](#local-blast)).
 
@@ -155,7 +156,7 @@ Sequences from the same accession (species) that overlap by at least 1 bp are de
 When using `--fix`, all sequences are validated against NCBI to ensure they match the source data at the given coordinates:
 
 1. **NCBI Validation**: Fetches the source sequence from NCBI and compares it against the Stockholm sequence at the given coordinates
-2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
+2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10; an exact match from the row's own accession is preferred, as in coordinate fixing), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
 3. **Removal**: Sequences that fail both NCBI validation and BLAST (or whose BLAST hit does not exactly match NCBI) are removed from the output
 
 With `--local`, sequences are fetched from the local database, and from NCBI only when an accession is missing from it.
