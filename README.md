@@ -134,6 +134,10 @@ The script can detect and remove duplicate sequences using the `--fix` flag. Dup
 2. The same coordinates
 3. The exact same sequence data
 
+**Identical sequences at different locations are kept.** Rows with the same sequence but a different accession or different coordinates (other genomes, or several copies in one genome) are valid for Infernal and are not removed, even with `--fix`. This is the right behaviour when checking an alignment that authors submitted.
+
+When Rfam builds the SEED itself, copies should be reduced by hand: keep **one copy per genome** when the copies are identical. For example, of `CP027766.1/583952-583869`, `CP027766.1/1350031-1350114` and `CP027766.1/2137130-2137213` (three identical copies), keep only one.
+
 ### Coordinate Fixing
 
 When sequences are missing coordinates (e.g., `NZ_CP038662.1` instead of `NZ_CP038662.1/4723652-4723704`), the `--fix` flag will:
