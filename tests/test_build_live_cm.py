@@ -150,12 +150,43 @@ def _fake_svn(monkeypatch, cm_files, desc_files):
     return b
 
 
-def test_build_fails_if_a_download_fails(monkeypatch, tmp_path, capsys):
+def test_build_fails_if_a_download_fails_and_keeps_old_database(monkeypatch, tmp_path, capsys):
     b = _fake_svn(monkeypatch, {"RF00005": SVN_CM, "RF00006": None}, {"RF00005": DESC})
+    out = tmp_path / "live.cm"
+    out.write_text("old database\n")
+    (tmp_path / "live.cm.i1i").write_text("old index\n")
     with pytest.raises(SystemExit) as e:
-        b.build_live_cm(str(tmp_path / "live.cm"), delay=0, press=False)
+        b.build_live_cm(str(out), delay=0, press=False)
     assert e.value.code == 1
     assert "could not be downloaded after retries (RF00006)" in capsys.readouterr().err
+    assert out.read_text() == "old database\n"
+    assert (tmp_path / "live.cm.i1i").read_text() == "old index\n"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["live.cm", "live.cm.i1i"]
+
+
+def test_interrupted_build_keeps_old_database(monkeypatch, tmp_path):
+    b = _fake_svn(monkeypatch, {"RF00005": SVN_CM}, {"RF00005": DESC})
+
+    def interrupt(family):
+        raise KeyboardInterrupt
+    monkeypatch.setattr(b, "download_desc", interrupt)
+    out = tmp_path / "live.cm"
+    out.write_text("old database\n")
+    with pytest.raises(KeyboardInterrupt):
+        b.build_live_cm(str(out), delay=0, press=False)
+    assert out.read_text() == "old database\n"
+    assert [p.name for p in tmp_path.iterdir()] == ["live.cm"]
+
+
+@pytest.mark.skipif(not shutil.which("cmpress"), reason="Infernal not installed")
+def test_rebuild_into_same_path_replaces_pressed_database(monkeypatch, tmp_path):
+    b = _fake_svn(monkeypatch, {"RF00005": SVN_CM}, {"RF00005": DESC})
+    out = tmp_path / "live.cm"
+    b.build_live_cm(str(out), delay=0, press=True)
+    first = {p.name for p in tmp_path.iterdir()}
+    assert first == {"live.cm", "live.cm.i1f", "live.cm.i1i", "live.cm.i1m", "live.cm.i1p"}
+    b.build_live_cm(str(out), delay=0, press=True)   # cmpress refuses old indexes
+    assert {p.name for p in tmp_path.iterdir()} == first
 
 
 def test_build_names_from_desc_and_keeps_names_unique(monkeypatch, tmp_path, capsys):

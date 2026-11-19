@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -21,6 +22,8 @@ import time
 
 
 SVN_BASE_URL = "https://svn.rfam.org/svn/data_repos/trunk/Families"
+# Index files written by cmpress next to the CM file
+PRESS_SUFFIXES = (".i1f", ".i1i", ".i1m", ".i1p")
 
 
 def check_cmpress():
@@ -160,8 +163,21 @@ def extract_first_model(cm_text, family, thresholds=None, name=None):
     return "".join(renamed)
 
 
+def _remove(path):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
 def build_live_cm(output_path, delay=0.1, press=True):
-    """Build a live Rfam CM database from SVN."""
+    """Build a live Rfam CM database from SVN.
+
+    The database is built in a temporary file next to output_path, which
+    replaces an existing database (and its old cmpress index files) only
+    once every family has been downloaded. A failed or interrupted build
+    leaves the existing database as it was.
+    """
     if press:
         check_cmpress()
 
@@ -174,51 +190,63 @@ def build_live_cm(output_path, delay=0.1, press=True):
     skipped = 0
     failed_downloads = []
     used_names = set()
+    tmp_path = output_path + ".tmp"
 
-    with open(output_path, "w") as out:
-        for i, family in enumerate(families, 1):
-            cm_text = download_cm(family)
-            desc_text = download_desc(family) if cm_text else None
-            thresholds = parse_thresholds(desc_text)
-            name = parse_family_id(desc_text)
-            if name in used_names:
-                print(f"Warning: {family}: ID {name} is already used by another family; "
-                      f"named {family} instead", file=sys.stderr, flush=True)
-            if not name or name in used_names:
-                name = family  # NAME must be unique in the pressed database
-            model = extract_first_model(cm_text, family, thresholds, name) if thresholds else None
-            if model:
-                out.write(model)
-                used_names.add(name)
-                downloaded += 1
-            else:
-                if not cm_text or not desc_text:
-                    reason = "could not download " + ("CM" if not cm_text else "DESC")
-                    failed_downloads.append(family)
-                elif not thresholds:
-                    reason = "no GA threshold in DESC (needed for cmscan --cut_ga)"
+    try:
+        with open(tmp_path, "w") as out:
+            for i, family in enumerate(families, 1):
+                cm_text = download_cm(family)
+                desc_text = download_desc(family) if cm_text else None
+                thresholds = parse_thresholds(desc_text)
+                name = parse_family_id(desc_text)
+                if name in used_names:
+                    print(f"Warning: {family}: ID {name} is already used by another family; "
+                          f"named {family} instead", file=sys.stderr, flush=True)
+                if not name or name in used_names:
+                    name = family  # NAME must be unique in the pressed database
+                model = extract_first_model(cm_text, family, thresholds, name) if thresholds else None
+                if model:
+                    out.write(model)
+                    used_names.add(name)
+                    downloaded += 1
                 else:
-                    reason = "CM file is not a CM followed by its filter HMM"
-                print(f"Warning: {family}: {reason}; skipped", file=sys.stderr, flush=True)
-                skipped += 1
+                    if not cm_text or not desc_text:
+                        reason = "could not download " + ("CM" if not cm_text else "DESC")
+                        failed_downloads.append(family)
+                    elif not thresholds:
+                        reason = "no GA threshold in DESC (needed for cmscan --cut_ga)"
+                    else:
+                        reason = "CM file is not a CM followed by its filter HMM"
+                    print(f"Warning: {family}: {reason}; skipped", file=sys.stderr, flush=True)
+                    skipped += 1
 
-            if i % 100 == 0:
-                print(f"Downloaded {i}/{total} families...", flush=True)
+                if i % 100 == 0:
+                    print(f"Downloaded {i}/{total} families...", flush=True)
 
-            if delay > 0:
-                time.sleep(delay)
+                if delay > 0:
+                    time.sleep(delay)
+    except BaseException:
+        _remove(tmp_path)  # interrupted or crashed: keep the existing database
+        raise
 
     print(f"Done. Downloaded {downloaded} CMs, skipped {skipped}.")
-    print(f"Output: {output_path}")
 
     if failed_downloads:
         # Network trouble, not a problem with the families: do not let an
         # incomplete database pass as complete (the workflow would commit it)
+        _remove(tmp_path)
         print(f"Error: {len(failed_downloads)} famil{'y' if len(failed_downloads) == 1 else 'ies'} "
               f"could not be downloaded after retries ({', '.join(failed_downloads[:10])}"
-              f"{', ...' if len(failed_downloads) > 10 else ''}). Run again later.",
-              file=sys.stderr)
+              f"{', ...' if len(failed_downloads) > 10 else ''}). Run again later; "
+              f"{output_path} was not changed.", file=sys.stderr)
         sys.exit(1)
+
+    # Old index files belong to the old database (and cmpress will not
+    # overwrite them), so remove them before the new file takes its place
+    for suffix in PRESS_SUFFIXES:
+        _remove(output_path + suffix)
+    os.replace(tmp_path, output_path)
+    print(f"Output: {output_path}")
 
     if press:
         print("Running cmpress...")
