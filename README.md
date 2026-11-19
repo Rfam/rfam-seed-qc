@@ -2,6 +2,7 @@
 
 [![Tests](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml/badge.svg)](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml)
 [![Release](https://img.shields.io/github/v/release/Rfam/rfam-seed-qc)](https://github.com/Rfam/rfam-seed-qc/releases)
+[![Bioconda](https://img.shields.io/conda/vn/bioconda/rfam-seed-qc?label=bioconda)](https://anaconda.org/bioconda/rfam-seed-qc)
 [![License](https://img.shields.io/github/license/Rfam/rfam-seed-qc)](LICENSE)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.8-blue)
 
@@ -34,11 +35,12 @@ uv does not install the non-Python tools. Without [Infernal](http://eddylab.org/
 ### Usage
 
 ```bash
-python3 validate_stockholm.py [-v] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] [--local [--blast-db BLAST_LOCAL_DB] [--threads N]] <file1.so> [file2.so ...]
+python3 validate_stockholm.py [-v] [--version] [--fix] [--output-mode {stdout,file}] [--cm-db Rfam.cm] [--local [--blast-db BLAST_LOCAL_DB] [--threads N]] <file1.so> [file2.so ...]
 ```
 
 Options:
 - `-v, --verbose`: Print detailed validation information
+- `--version`: Show the version (e.g. `rfam-seed-qc 1.3.1`) and exit
 - `--fix`: Attempt to fix fixable errors automatically
 - `--output-mode {stdout,file}`: Output mode for fixed files (default: file)
   - `file`: Create a new file with `_corrected` suffix, plus a `_Report.txt` log of the run (starting with the tool version)
@@ -51,7 +53,7 @@ Options:
 
 #### NCBI rate limits
 
-NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, or rejects the API key, the run stops with an error rather than removing sequences it could not check. To avoid this:
+NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, rejects the API key, or cannot be reached at all (no network, DNS or firewall problems), the run stops with an error rather than removing sequences it could not check. The same applies when RNAcentral cannot be reached. To avoid this:
 
 - Use `--local` (see below), which reads sequences from a local database; or
 - Set an NCBI API key (free, from your [NCBI account settings](https://www.ncbi.nlm.nih.gov/account/settings/)). The limit then applies to your key (10 requests per second) instead of the shared IP. The key is read from the environment and never written to reports:
@@ -81,7 +83,7 @@ update_blastdb.pl --source ncbi --decompress --num_threads 4 nt
 
 `update_blastdb.pl` downloads one volume at a time, so this can take several days: run it as a batch job, not on a login node. If it stops, run it again and it resumes.
 
-Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. In local mode, sequences are also read from the local database (with `blastdbcmd`), so there are no NCBI rate limits and jobs can run without internet access. Only accessions missing from the local database (`nt` omits some divisions, such as most WGS contigs) are fetched from NCBI, and RNAcentral IDs are still checked against RNAcentral.
+Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path with `--blast-db /path/to/blastdb/nt`. There are no incremental updates: re-run `update_blastdb.pl` to refresh it. With `-v`, the database date is printed in the report. In local mode, sequences are also read from the local database (with `blastdbcmd`), so there are no NCBI rate limits and jobs can run without internet access. Only accessions missing from the local database (`nt` omits some divisions, such as most WGS contigs) are fetched from NCBI, and RNAcentral IDs are still checked against RNAcentral. If one of those is needed and the node has no internet access, the run stops with an error rather than removing the sequence. The exception is an accession taken from a sequence name without coordinates (e.g. `NC_002695.2_2186489`): BLAST is used instead (see [Coordinate Fixing](#coordinate-fixing)).
 
 ### What is validated?
 
@@ -133,13 +135,18 @@ The script can detect and remove duplicate sequences using the `--fix` flag. Dup
 2. The same coordinates
 3. The exact same sequence data
 
+**Identical sequences at different locations are kept.** Rows with the same sequence but a different accession or different coordinates (other genomes, or several copies in one genome) are valid for Infernal and are not removed, even with `--fix`. This is the right behaviour when checking an alignment that authors submitted.
+
+When Rfam builds the SEED itself, copies should be reduced by hand: keep **one copy per genome** when the copies are identical. For example, of `CP027766.1/583952-583869`, `CP027766.1/1350031-1350114` and `CP027766.1/2137130-2137213` (three identical copies), keep only one.
+
 ### Coordinate Fixing
 
 When sequences are missing coordinates (e.g., `NZ_CP038662.1` instead of `NZ_CP038662.1/4723652-4723704`), the `--fix` flag will:
 
 1. **NCBI Direct Lookup**: Download the FASTA sequence from NCBI and find coordinates by matching the alignment sequence
-2. **BLAST Fallback**: If direct lookup fails, perform a BLAST search against NCBI's nucleotide database (accepts hits with >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries. Among the hits that pass, an exact full-length match is preferred, since only exact matches pass the final check
-3. **Removal**: Sequences that cannot be resolved via either method are removed from the output
+2. **Accession in the name**: If the name starts with an accession followed by other text (e.g. `NZ_CP176678.1_2667588`), look for the sequence in that record: the GenBank form first (`CP176678.1`), then the name's own form (`NZ_CP176678.1`), then the unversioned accession (`CP176678`), in case the database holds another version (the sequence must still match exactly). A sequence can occur more than once in a genome: if an exact match **starts exactly** at the number after the accession (`2667588`, as the higher coordinate on the reverse strand), that copy is used; otherwise the first occurrence (forward strand before reverse). The number is never used to pick a nearby match. With `--local`, every form is looked up in the local database first, and fetched from NCBI only if none is there (e.g. RefSeq `NC_` records, which `nt` lacks). If NCBI cannot be used in this step, the sequence goes to BLAST instead of stopping the run, and NCBI is not tried again for names in that run, so offline nodes wait at most once. Without `--local`, the whole name is not looked up at NCBI first, since it is not an accession
+3. **BLAST Fallback**: If the lookups fail, perform a BLAST search against NCBI's nucleotide database. Only an **exact full-length match** (all bases identical, no gaps, whole sequence) gives the sequence its accession and coordinates, since only exact matches pass the final check. All returned hits are examined (`BLAST_HITLIST_SIZE`), and if the name starts with an accession, an exact match from that record (ignoring version and `NZ_` prefix) is chosen over exact matches from other records, which are often other species with an identical sequence, using the copy that starts exactly at the number in the name if there is one; otherwise the first exact match is used. The closest hit is still reported (hits need >=95% identity, >=90% coverage, e-value <=1e-10). Searches use standard **blastn**, not megablast, with its parameters set explicitly (word size 11, match/mismatch 2/−3, gap costs 5/2) so results don't change if NCBI changes its defaults. blastn is slower than megablast but more sensitive, including for short queries.
+4. **Removal**: Sequences that cannot be resolved via either method are removed from the output
 
 With `--local`, the lookup and the BLAST search use the local database instead (see [Local BLAST](#local-blast)).
 
@@ -154,7 +161,7 @@ Sequences from the same accession (species) that overlap by at least 1 bp are de
 When using `--fix`, all sequences are validated against NCBI to ensure they match the source data at the given coordinates:
 
 1. **NCBI Validation**: Fetches the source sequence from NCBI and compares it against the Stockholm sequence at the given coordinates
-2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
+2. **BLAST Fallback**: If the accession is not found in NCBI or the sequence doesn't match, a BLAST search is performed. If a hit is found (>=95% identity, >=90% coverage, e-value <=1e-10; an exact match from the row's own accession is preferred, as in coordinate fixing), the hit's accession is re-fetched from NCBI and the sequence is verified for an exact match before the rescue is accepted. This ensures compatibility with Rfam's `rfsearch.pl` MD5 validation.
 3. **Removal**: Sequences that fail both NCBI validation and BLAST (or whose BLAST hit does not exactly match NCBI) are removed from the output
 
 With `--local`, sequences are fetched from the local database, and from NCBI only when an accession is missing from it.

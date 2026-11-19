@@ -23,14 +23,16 @@ SCRIPT = REPO / 'validate_stockholm.py'
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
 
 
-def run_validator(*args, cwd=None, timeout=60, cache=None):
+def run_validator(*args, cwd=None, timeout=60, cache=None, env_extra=None):
     """Run the validator and return (exit code, combined output).
 
     cache: folder for RFAM_SEED_QC_CACHE (default: the user's normal cache).
+    env_extra: extra environment variables.
     """
     env = dict(os.environ)
     if cache is not None:
         env['RFAM_SEED_QC_CACHE'] = str(cache)
+    env.update(env_extra or {})
     result = subprocess.run(
         [sys.executable, str(SCRIPT), *map(str, args)],
         capture_output=True, text=True, cwd=cwd, timeout=timeout, env=env,
@@ -82,6 +84,13 @@ def test_every_fixture_is_tested():
     on_disk = {str(p.relative_to(FIXTURES)) for folder in ('valid', 'invalid', 'fixable')
                for p in (FIXTURES / folder).iterdir() if p.is_file()}
     assert on_disk == listed
+
+
+def test_version():
+    """--version prints the version from the VERSION file and exits, with no file needed."""
+    code, output = run_validator('--version')
+    assert code == 0, output
+    assert output.strip() == f"rfam-seed-qc {(REPO / 'VERSION').read_text().strip()}"
 
 
 def test_several_files_fail_if_one_is_invalid():
@@ -150,4 +159,22 @@ def test_fix_stops_if_cache_is_not_writable(tmp_path):
     assert code != 0, output
     assert 'Set RFAM_SEED_QC_CACHE' in output, output
     assert 'Stopping so no sequence is removed by mistake' in output, output
+    assert not (tmp_path / 'duplicate_and_overlap_corrected.sto').exists(), output
+
+
+def test_fix_stops_if_ncbi_is_unreachable(tmp_path):
+    """No connection to NCBI (offline node, DNS, firewall) must stop the run,
+    not turn every lookup into "not found" and remove every sequence. Offline:
+    all connections go to a proxy port where nothing listens."""
+    src = FIXTURES / 'fix/duplicate_and_overlap.sto'
+    shutil.copy(src, tmp_path / src.name)
+    unreachable = 'http://127.0.0.1:9'
+    code, output = run_validator(
+        '-v', '--fix', src.name, cwd=tmp_path, cache=tmp_path / 'cache',
+        env_extra={'https_proxy': unreachable, 'HTTPS_PROXY': unreachable,
+                   'no_proxy': '', 'NO_PROXY': ''})
+    assert code != 0, output
+    assert 'Could not reach NCBI' in output, output
+    assert 'Stopping so no sequence is removed by mistake' in output, output
+    assert 'NOT FOUND' not in output and 'Running BLAST search' not in output, output
     assert not (tmp_path / 'duplicate_and_overlap_corrected.sto').exists(), output

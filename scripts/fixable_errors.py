@@ -33,7 +33,9 @@ class LocalBlastError(RunAbortError):
 
 
 class NCBIUnavailableError(RunAbortError):
-    """NCBI kept refusing requests (HTTP 429 rate limit or 5xx) after retries."""
+    """NCBI could not be used: it kept refusing requests (HTTP 429 rate limit
+    or 5xx), could not be reached at all (no connection, DNS, timeouts), or
+    rejected the API key."""
 
 
 class CacheError(RunAbortError):
@@ -109,10 +111,25 @@ def _cache_store(tmp_path, fasta_file):
         raise _cache_error(e, os.path.dirname(fasta_file)) from e
 
 
+class RNAcentralUnavailableError(RunAbortError):
+    """RNAcentral could not be reached or kept failing (not a 404)."""
+
+
 def _ncbi_refused(e):
     """True for HTTP errors that mean 'try later' (rate limit, server trouble)."""
     import urllib.error
     return isinstance(e, urllib.error.HTTPError) and (e.code == 429 or e.code >= 500)
+
+
+def _is_network_error(e):
+    """True if the server could not be reached at all (no connection, DNS
+    failure, timeout, dropped connection). An HTTP error status is not one:
+    the server answered."""
+    import http.client
+    import urllib.error
+    if isinstance(e, urllib.error.HTTPError):
+        return False
+    return isinstance(e, (OSError, http.client.HTTPException))
 
 
 def parse_sequence_identifier(seq_name):
@@ -181,6 +198,60 @@ def _is_fasta_file(path):
 # straight to BLAST, so offline runs do not wait on network timeouts.
 _ACCESSION_RE = re.compile(r'^(?:[A-Z]{2}_[A-Z]{0,6}|[A-Z]{1,6})\d{5,12}(\.\d+)?$')
 
+# An accession at the start of a sequence name, followed by anything that is
+# not part of it: NZ_CP176678.1_2667588, CP061243.1_2605127, CP061243.1/1-84.
+_ACCESSION_HINT_RE = re.compile(
+    r'^((?:[A-Z]{2}_[A-Z]{0,6}|[A-Z]{1,6})\d{5,12})(?:\.(\d+))?(?![A-Za-z0-9])')
+
+
+def _accession_core(accession):
+    """Accession without version or RefSeq NZ_ prefix, for comparing records:
+    NZ_CP176678.1 and CP176678.2 both give CP176678. RefSeq NZ_ records are
+    copies of the GenBank record with the same core, and nt holds the GenBank
+    one."""
+    accession = re.sub(r'\.\d+$', '', accession)
+    return accession[3:] if accession.startswith('NZ_') else accession
+
+
+def _accession_hint(seq_name):
+    """
+    The accession a sequence name starts with, if any, e.g. from
+    NZ_CP176678.1_2667588. Used to prefer the submitter's own record.
+
+    Returns:
+        (core, candidates, start) or None.
+        core: as in _accession_core (CP176678).
+        candidates: the accessions to look up, GenBank form first, then the
+            name's own form, then unversioned (CP176678.1, NZ_CP176678.1,
+            CP176678), in case the database holds another version. A
+            different version is safe to use: the sequence must still match
+            it exactly.
+        start: the number after the accession when the name is just
+            ACCESSION_NUMBER (2667588), else None. It is only used when an
+            exact match starts exactly there (see _locate_in_record).
+        None for names that do not start with an accession (species names,
+        RNAcentral ids).
+    """
+    accession = parse_sequence_identifier(seq_name)[0]
+    if rnacentral.is_rnacentral_id(accession):
+        return None
+    m = _ACCESSION_HINT_RE.match(accession)
+    if not m:
+        return None
+    version = f'.{m.group(2)}' if m.group(2) else ''
+    named = m.group(1) + version
+    core = _accession_core(m.group(1))
+    candidates = []
+    for candidate in (core + version, named, core):
+        if candidate not in candidates:
+            candidates.append(candidate)
+    start = None
+    if seq_name == accession:  # no /coordinates in the name
+        number = re.fullmatch(r'_(\d+)', accession[m.end():])
+        if number and int(number.group(1)) > 0:
+            start = int(number.group(1))
+    return core, candidates, start
+
 
 def _fetch_local(identifier, fasta_file, fasta_folder):
     """With --local, copy the record from the local BLAST database into the
@@ -211,14 +282,14 @@ def _fetch_local(identifier, fasta_file, fasta_folder):
             os.remove(tmp_path)
 
 
-def get_fasta_file(identifier, max_retries=3):
+def get_fasta_file(identifier, max_retries=3, allow_ncbi=True):
     """
     Download fasta file from NCBI if not already downloaded.
     Retries on transient network failures (longer waits when NCBI rate-limits).
 
     With --local (config.BLAST_LOCAL_DB set), the record is read from the
     local BLAST database first; NCBI is used only for real-looking accessions
-    the local database lacks.
+    the local database lacks, and only if allow_ncbi is True.
 
     NCBI efetch answers an unknown identifier with HTTP 200 and an
     'Error: ...' body, so the download is checked to be real FASTA before it
@@ -226,11 +297,15 @@ def get_fasta_file(identifier, max_retries=3):
     cache by older versions are discarded and re-downloaded.
 
     Downloads use Python's urllib (no external curl/wget needed). A network
-    failure is reported as RuntimeError, never as a missing accession.
+    failure is never reported as a missing accession.
 
     Raises:
         AccessionNotFoundError: NCBI says the identifier does not exist.
-        RuntimeError: download kept failing.
+        NCBIUnavailableError: NCBI kept refusing requests, could not be
+            reached, or rejected the API key (stops the run).
+        CacheError: the sequence cache cannot be written (stops the run).
+        RuntimeError: any other failure that persists after the retries,
+            such as a reply that is not FASTA.
     """
     import http.client
     import shutil
@@ -260,6 +335,8 @@ def get_fasta_file(identifier, max_retries=3):
         if not _ACCESSION_RE.match(identifier):
             raise AccessionNotFoundError(
                 f"{identifier} is not an accession and is not in the local database")
+        if not allow_ncbi:
+            raise AccessionNotFoundError(f"{identifier} is not in the local database")
 
     from urllib.parse import urlencode
     params = {'db': 'nuccore', 'id': identifier, 'rettype': 'fasta', 'retmode': 'text',
@@ -339,6 +416,14 @@ def get_fasta_file(identifier, max_retries=3):
         raise NCBIUnavailableError(
             f"NCBI kept refusing requests for {identifier} ({last_error}) after {max_retries} "
             f"attempts. Try again later, set NCBI_API_KEY, or use --local")
+    if _is_network_error(last_error):
+        # NCBI could not be reached at all (offline node, DNS, firewall,
+        # timeouts). That says nothing about the sequence: treating it as
+        # "not found" would remove every sequence in the file.
+        where = " (it is not in the local database)" if config.BLAST_LOCAL_DB else ""
+        raise NCBIUnavailableError(
+            f"Could not reach NCBI to fetch {identifier}{where} ({last_error}) after "
+            f"{max_retries} attempts. Check the network connection and try again")
     raise RuntimeError(f"Failed to download FASTA for {identifier} after {max_retries} attempts"
                        f" ({last_error})")
 
@@ -360,7 +445,29 @@ def get_accession_version(fasta_file):
     return ''
 
 
-def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None):
+def _hit_accession(alignment):
+    """Accession of a BLAST hit, or None if it cannot be read."""
+    # Format: "gi|xxx|ref|NZ_CP045771.1|" or "gi|xxx|gb|CP041614.1|"
+    # (web API), or "ref|NZ_CP045771.1|" (local BLAST+ databases);
+    # tpg/tpe/tpd are third-party annotation records in nt
+    accession_match = re.search(r'(?:^|\|)(ref|gb|emb|dbj|tpg|tpe|tpd)\|([^|]+)\|', alignment.title)
+    hit_id = alignment.hit_id
+    if accession_match:
+        return accession_match.group(2).rstrip('|')
+    if config.BLAST_LOCAL_DB and (hit_id.startswith('lcl|') or '|' not in hit_id):
+        # Custom database built with makeblastdb -parse_seqids: the hit id is
+        # the record's own name (Homo_sapiens_chr12), which blastdbcmd can
+        # retrieve for validation
+        return hit_id[4:] if hit_id.startswith('lcl|') else hit_id
+    # Try format: "NZ_CP045771.1 description"
+    accession_match = re.search(r'^([A-Z]{1,2}_?[A-Z]*\d+\.\d+)', hit_id)
+    if accession_match:
+        return accession_match.group(1).rstrip('|')
+    return None
+
+
+def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None,
+                 exact_only=False, prefer_accession=None, prefer_start=None):
     """
     Perform BLAST search for a sequence that couldn't be found directly.
 
@@ -370,6 +477,19 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
         min_identity: Minimum identity percentage (default from config)
         min_coverage: Minimum query coverage percentage (default from config)
         max_evalue: Maximum e-value to accept (default from config)
+        exact_only: Accept only an exact full-length match (all bases
+            identical, no gaps, whole query). The best inexact hit is still
+            reported, but not returned.
+        prefer_accession: The accession the sequence was named with, if any
+            (e.g. CP176678 from NZ_CP176678.1_2667588). An exact match from
+            this record (same accession, ignoring version and NZ_ prefix) is
+            chosen over exact matches from other records, which are often
+            other species with an identical sequence. It never wins over an
+            exact match with an inexact one.
+        prefer_start: The number in a name such as NZ_CP176678.1_2667588.
+            Among exact matches from prefer_accession, one whose start (as
+            written in the name, so the higher coordinate on the reverse
+            strand) is exactly this number is chosen; otherwise the first.
 
     Returns:
         tuple: (accession_with_coords, is_accurate) or (None, False) if no good hit
@@ -441,80 +561,89 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                     )
                     break
                 except Exception as e:
-                    if not _ncbi_refused(e):
+                    if not (_ncbi_refused(e) or _is_network_error(e)):
                         raise
                     if attempt == 3:
                         raise NCBIUnavailableError(
-                            f"NCBI BLAST kept refusing requests ({e}) after 3 attempts. "
+                            f"NCBI BLAST kept refusing or failing requests ({e}) after 3 attempts. "
                             f"Try again later, or use --local") from e
                     if verbose:
-                        print(f"    NCBI BLAST refused the request ({e}), retrying...")
+                        print(f"    NCBI BLAST request failed ({e}), retrying...")
                     time.sleep(config.NCBI_BLAST_RETRY_WAIT * attempt)
         blast_records = NCBIXML.parse(result_handle)
         blast_record = next(blast_records)
 
-        # Pick the first acceptable hit in BLAST's order, but prefer an exact
-        # full-length match (all bases identical, no gaps, whole query) if any
-        # hit has one: only exact matches survive the later NCBI/MD5 check, and
-        # with many hits returned the exact one is not always listed first.
+        # Look at every hit returned (up to BLAST_HITLIST_SIZE), not just the
+        # first. Choose, in order:
+        #   1. an exact match from prefer_accession (the submitter's record):
+        #      identical sequences in other species are common, and BLAST's
+        #      order among equally good hits says nothing about which is right;
+        #   2. the first exact full-length match (all bases identical, no
+        #      gaps, whole query): only exact matches survive the later
+        #      NCBI/MD5 check, and the exact one is not always listed first;
+        #   3. unless exact_only, the first acceptable hit in BLAST's order.
+        # Within that record, an exact match starting exactly at prefer_start
+        # is used if there is one (the copy the submitter named), otherwise
+        # the first in BLAST's order.
+        prefer_core = _accession_core(prefer_accession) if prefer_accession else None
         first_ok = None
+        first_exact = None
+        preferred = None
+        preferred_at_start = None
+        n_exact = 0
         for alignment in blast_record.alignments:
+            accession = _hit_accession(alignment)
+            if not accession:
+                continue
             for hsp in alignment.hsps:
                 # Calculate identity and coverage. BLAST query coordinates are
                 # 1-based and inclusive, so the span covers end - start + 1 bases.
                 identity = (hsp.identities / hsp.align_length) * 100
                 coverage = (hsp.query_end - hsp.query_start + 1) / len(dna_seq) * 100
+                if not (identity >= min_identity and coverage >= min_coverage
+                        and hsp.expect <= max_evalue):
+                    continue
 
-                if identity >= min_identity and coverage >= min_coverage and hsp.expect <= max_evalue:
-                    # Extract accession from hit - try multiple formats
-                    hit_def = alignment.title
-                    accession = None
+                # Coordinates follow the strand (start > end on the reverse strand)
+                hit = (f"{accession}/{hsp.sbjct_start}-{hsp.sbjct_end}",
+                       identity, coverage, hsp.expect)
+                if first_ok is None:
+                    first_ok = hit
+                if hsp.identities == len(dna_seq) == hsp.align_length:
+                    n_exact += 1
+                    if first_exact is None:
+                        first_exact = hit
+                    if prefer_core and _accession_core(accession) == prefer_core:
+                        if preferred is None:
+                            preferred = hit
+                        if (preferred_at_start is None and prefer_start is not None
+                                and hsp.sbjct_start == prefer_start):
+                            preferred_at_start = hit
 
-                    # Format: "gi|xxx|ref|NZ_CP045771.1|" or "gi|xxx|gb|CP041614.1|"
-                    # (web API), or "ref|NZ_CP045771.1|" (local BLAST+ databases);
-                    # tpg/tpe/tpd are third-party annotation records in nt
-                    accession_match = re.search(r'(?:^|\|)(ref|gb|emb|dbj|tpg|tpe|tpd)\|([^|]+)\|', hit_def)
-                    hit_id = alignment.hit_id
-                    if accession_match:
-                        accession = accession_match.group(2).rstrip('|')
-                    elif config.BLAST_LOCAL_DB and (hit_id.startswith('lcl|') or '|' not in hit_id):
-                        # Custom database built with makeblastdb -parse_seqids:
-                        # the hit id is the record's own name (Homo_sapiens_chr12),
-                        # which blastdbcmd can retrieve for validation
-                        accession = hit_id[4:] if hit_id.startswith('lcl|') else hit_id
-                    else:
-                        # Try format: "NZ_CP045771.1 description"
-                        accession_match = re.search(r'^([A-Z]{1,2}_?[A-Z]*\d+\.\d+)', alignment.hit_id)
-                        if accession_match:
-                            accession = accession_match.group(1)
-
-                    if accession:
-                        # Clean up accession (remove trailing |)
-                        accession = accession.rstrip('|')
-                        # Coordinates based on strand
-                        coords = f"{hsp.sbjct_start}-{hsp.sbjct_end}"
-
-                        new_accession = f"{accession}/{coords}"
-                        hit = (new_accession, identity, coverage, hsp.expect)
-
-                        exact = (hsp.identities == len(dna_seq) == hsp.align_length)
-                        if exact:
-                            first_ok = hit
-                            break
-                        if first_ok is None:
-                            first_ok = hit
-            else:
-                continue
-            break  # exact match found
-
-        if first_ok:
-            new_accession, identity, coverage, evalue = first_ok
+        preferred = preferred_at_start or preferred
+        chosen = preferred or first_exact or (None if exact_only else first_ok)
+        if chosen:
+            new_accession, identity, coverage, evalue = chosen
             if verbose:
                 print(f"    BLAST hit: {new_accession} (identity={identity:.1f}%, coverage={coverage:.1f}%, e={evalue:.2e})")
+                if preferred:
+                    where = (f" starting at {prefer_start}" if preferred is preferred_at_start
+                             else "")
+                    print(f"    Chosen as an exact match from the named accession {prefer_core}"
+                          f"{where} ({n_exact} exact match(es) in total)")
+                elif prefer_core and first_exact:
+                    print(f"    No exact match from the named accession {prefer_core} among the "
+                          f"{n_exact} exact match(es); using the first one")
             return new_accession, True
 
         if verbose:
-            print("    No accurate BLAST hit found")
+            if first_ok:
+                # exact_only: report the near miss so curators can see it
+                new_accession, identity, coverage, evalue = first_ok
+                print(f"    No exact BLAST match (best: {new_accession}, identity={identity:.1f}%, "
+                      f"coverage={coverage:.1f}%)")
+            else:
+                print("    No accurate BLAST hit found")
         return None, False
 
     except RunAbortError:
@@ -525,6 +654,12 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             # gets here; any exception (blastn missing, unreadable output) is
             # a failure, and must not be mistaken for "no hit".
             raise LocalBlastError(f"local BLAST failed: {type(e).__name__}: {e}") from e
+        if _is_network_error(e):
+            # Web BLAST could not reach NCBI: not "no hit", so stop rather
+            # than remove the sequence
+            raise NCBIUnavailableError(
+                f"Could not reach NCBI BLAST ({e}). Check the network connection and "
+                f"try again, or use --local") from e
         if verbose:
             print(f"    BLAST search failed: {e}")
         return None, False
@@ -548,6 +683,135 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                 pass
 
 
+def _locate_in_record(identifier, ungapped, allow_ncbi=True, start=None):
+    """
+    Find an ungapped sequence in a record.
+
+    If start is given (the number in a name such as NZ_CP176678.1_2667588)
+    and an exact match begins exactly there, on either strand, that match is
+    used: a sequence can occur more than once in a genome, and this is the
+    copy the submitter named. The number is never used otherwise (no nearest
+    match): if no match begins there, the first occurrence is used, forward
+    strand first, then reverse complement.
+
+    Returns:
+        'ACCESSION/START-END' (START > END on the reverse strand), or None if
+        the record does not contain the sequence.
+    Raises:
+        whatever get_fasta_file raises (record missing, NCBI unreachable, ...)
+    """
+    from Bio import SeqIO
+    from Bio.Seq import Seq
+
+    fasta_file = get_fasta_file(identifier, allow_ncbi=allow_ncbi)
+    fasta = SeqIO.read(fasta_file, "fasta")
+
+    # Get version if not in the identifier
+    version = get_accession_version(fasta_file) if '.' not in identifier else ''
+
+    # Convert RNA to DNA for matching
+    s1 = Seq(ungapped).back_transcribe()
+    s2 = s1.reverse_complement()
+    n = len(s1)
+    name = f'{identifier}{version}'
+
+    if start is not None:
+        # Forward strand: START-(START+n-1); reverse strand: START-(START-n+1)
+        if fasta.seq[start - 1:start - 1 + n] == s1:
+            return f'{name}/{start}-{start + n - 1}'
+        if start >= n and fasta.seq[start - n:start] == s2:
+            return f'{name}/{start}-{start - n + 1}'
+
+    pos = fasta.seq.find(s1)
+    if pos != -1:
+        return f'{name}/{pos + 1}-{pos + n}'
+    pos = fasta.seq.find(s2)
+    if pos != -1:
+        return f'{name}/{pos + n}-{pos + 1}'
+    return None
+
+
+# Set when NCBI cannot be used for lookups of accessions taken from names in
+# --local mode, so the rest of the run does not wait on it again (see
+# _find_in_named_accession). One-element list: module state shared by files.
+_named_ncbi_unavailable = [False]
+
+
+def _find_in_named_accession(seq_name, hint, ungapped, verbose=False):
+    """
+    Look for the sequence in the accession its name starts with (hint from
+    _accession_hint), trying the GenBank form first (CP176678.1, then
+    NZ_CP176678.1, then unversioned CP176678). Names that are themselves the
+    accession were already looked up directly and are skipped. A number
+    after the accession picks the copy only as in _locate_in_record.
+
+    With --local, every form is first looked up in the local database. Only
+    if none is there (e.g. RefSeq NC_ records, which nt lacks) are they
+    fetched from NCBI. If NCBI cannot be used (unreachable, refusing, bad
+    API key), the sequence goes on to BLAST instead of stopping the run, and
+    NCBI is not tried again for names in this run, so offline nodes wait at
+    most once. Stopping is not needed here: no sequence is removed because
+    of it, as BLAST and the exact validation still follow.
+
+    Returns:
+        'ACCESSION/START-END' or None.
+    Raises:
+        RunAbortError (NCBI unreachable in web mode, broken local database,
+        cache not writable), as for any other lookup.
+    """
+    if not hint:
+        return None
+    _, candidates, start = hint
+    candidates = [c for c in candidates if c != seq_name]
+
+    def attempt(candidate, allow_ncbi):
+        """(found, available): available is False if the record could not
+        be read, so a later NCBI pass may still try it."""
+        try:
+            found = _locate_in_record(candidate, ungapped, start=start, allow_ncbi=allow_ncbi)
+        except RunAbortError:
+            raise
+        except Exception as e:
+            if verbose:
+                print(f"  {seq_name}: named accession {candidate} not available ({e})")
+            return None, False
+        if not found and verbose:
+            print(f"  {seq_name}: sequence not found in named accession {candidate}")
+        return found, True
+
+    if not config.BLAST_LOCAL_DB:
+        for candidate in candidates:
+            found, _ = attempt(candidate, allow_ncbi=True)
+            if found:
+                return found
+        return None
+
+    # --local: the local database first, for every form
+    missing = []
+    for candidate in candidates:
+        found, available = attempt(candidate, allow_ncbi=False)
+        if found:
+            return found
+        if not available:
+            missing.append(candidate)
+    if _named_ncbi_unavailable[0]:
+        return None
+
+    # Then NCBI, for forms the local database does not have
+    for candidate in missing:
+        try:
+            found, _ = attempt(candidate, allow_ncbi=True)
+        except NCBIUnavailableError as e:
+            _named_ncbi_unavailable[0] = True
+            print(f"  Warning: NCBI cannot be used ({e}). Accessions in sequence names that "
+                  f"are not in the local database will not be fetched for the rest of this "
+                  f"run; those sequences go to BLAST")
+            return None
+        if found:
+            return found
+    return None
+
+
 def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
     """
     Fix missing coordinates by looking up sequences in NCBI.
@@ -561,13 +825,18 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
     Returns:
         tuple: (id_mapping dict, sequences_to_remove set)
     """
-    from Bio import AlignIO, SeqIO
-    from Bio.Seq import Seq
+    from types import SimpleNamespace
+    from scripts import parser
 
     mapping = {}
     to_remove = set()
 
-    align = AlignIO.read(filepath, 'stockholm')
+    # Read rows with the validator's own parser, not Biopython's AlignIO, which
+    # rejects files the validator accepts (a duplicate row, an SS_cons of the
+    # wrong length) and would crash the run instead of fixing them.
+    with open(filepath) as f:
+        entries = parser.parse_stockholm_file(f.readlines())['sequence_entries']
+    align = [SimpleNamespace(id=name, seq=seq) for name, seq in entries]
 
     # Records that already carry coordinates need no lookup, so they are settled
     # up front and left out of the progress total.
@@ -592,17 +861,14 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
         # Remove gaps for sequence matching
         ungapped = str(record.seq).replace('.', '').replace('-', '').upper()
 
-        found = False
-
         # RNAcentral ids (URS..., URS..._taxid): locate within the RNAcentral
         # sequence instead of NCBI. On failure fall through to BLAST.
         if rnacentral.is_rnacentral_id(record.id):
             try:
                 new_accession = rnacentral.find_coordinates(record.id, ungapped)
             except rnacentral.RNAcentralError as e:
-                new_accession = None
-                if verbose:
-                    print(f"  Warning: RNAcentral lookup failed for {record.id}: {e}")
+                # RNAcentral unreachable: not a reason to drop the sequence
+                raise RNAcentralUnavailableError(f"{e}. Try again later") from e
             if new_accession:
                 if verbose:
                     print(f"  {record.id} -> {new_accession} (RNAcentral)")
@@ -611,36 +877,27 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
             if verbose:
                 print(f"  {record.id}: sequence not found in RNAcentral entry")
 
+        # A name that starts with an accession followed by other text
+        # (NZ_CP176678.1_2667588) is not an NCBI record: the accession in it
+        # is looked up instead (below). Without --local the whole name is not
+        # sent to NCBI (a wasted request that always fails); with --local it
+        # is still tried, as a custom database may hold records named that
+        # way, but its expected failure is not reported.
+        hint = _accession_hint(record.id)
+        named_only = hint is not None and not _ACCESSION_RE.match(record.id)
+
         try:
             if rnacentral.is_rnacentral_id(record.id):
                 # Not an NCBI accession; skip straight to BLAST
                 raise LookupError("RNAcentral id, NCBI lookup skipped")
-            # Inside the try: a download that exhausts its retries raises, and
-            # that must cost only this sequence, not the whole run.
-            fasta_file = get_fasta_file(record.id)
-            fasta = SeqIO.read(fasta_file, "fasta")
-
-            # Get version if not in record id
-            if '.' not in record.id:
-                version = get_accession_version(fasta_file)
-            else:
-                version = ''
-
-            # Convert RNA to DNA for matching
-            s1 = Seq(ungapped).back_transcribe()
-
-            start = fasta.seq.find(s1)
-            if start == -1:  # Try reverse complement
-                s2 = s1.reverse_complement()
-                start = fasta.seq.find(s2)
-                if start != -1:
-                    new_accession = f'{record.id}{version}/{start + len(s1)}-{start + 1}'
-                    found = True
-            else:
-                new_accession = f'{record.id}{version}/{start + 1}-{start + len(s1)}'
-                found = True
-
-            if found:
+            if named_only and not config.BLAST_LOCAL_DB:
+                raise LookupError("not an accession, looking up the accession in the name")
+            # Inside the try: a record that is missing or unreadable costs
+            # only this sequence. Errors that say nothing about the sequence
+            # (NCBI unreachable, cache not writable) stop the run instead, via
+            # the RunAbortError clause below.
+            new_accession = _locate_in_record(record.id, ungapped)
+            if new_accession:
                 if verbose:
                     print(f"  {record.id} -> {new_accession}")
                 mapping[record.id] = new_accession
@@ -649,15 +906,32 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
         except RunAbortError:
             raise  # broken local database or NCBI refusing: stop, don't drop the sequence
         except Exception as e:
-            if verbose:
+            if verbose and not named_only:
                 print(f"  Warning: Could not read fasta for {record.id}: {e}")
 
+        # The name may start with an accession followed by other text
+        # (NZ_CP176678.1_2667588): look for the sequence in that record before
+        # BLAST, which may list identical copies from other species first, or
+        # not list this record at all among BLAST_HITLIST_SIZE hits.
+        new_accession = _find_in_named_accession(record.id, hint, ungapped, verbose)
+        if new_accession:
+            if verbose:
+                print(f"  {record.id} -> {new_accession} (from the accession in its name)")
+            mapping[record.id] = new_accession
+            continue
+
         # Direct lookup failed, try BLAST if enabled
-        if not found and use_blast_fallback:
+        if use_blast_fallback:
             if verbose:
                 print(f"  {record.id} not found directly, trying BLAST...")
 
-            blast_result, is_accurate = blast_search(ungapped, verbose=verbose)
+            # Only an exact match can pass the final validation (Rfam's MD5
+            # check). Accepting a near miss here would rename the sequence,
+            # fail validation, and repeat this same BLAST search for nothing.
+            blast_result, is_accurate = blast_search(
+                ungapped, verbose=verbose, exact_only=True,
+                prefer_accession=hint[0] if hint else None,
+                prefer_start=hint[2] if hint else None)
 
             if is_accurate and blast_result:
                 if verbose:
@@ -667,7 +941,7 @@ def fix_missing_coordinates(filepath, verbose=False, use_blast_fallback=True):
 
         # Neither direct lookup nor BLAST worked - mark for removal
         if verbose:
-            print(f"  {record.id} will be REMOVED (no accurate match found)")
+            print(f"  {record.id} will be REMOVED (no exact match found)")
         to_remove.add(record.id)
 
     if show_bar:
@@ -814,8 +1088,11 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
         ncbi_ok = False
         if rnacentral.is_rnacentral_id(accession):
             # RNAcentral id: validate against RNAcentral instead of NCBI
-            ncbi_ok, failure = rnacentral.validate_sequence(
-                accession, start, end, stockholm_seq, verbose=verbose)
+            try:
+                ncbi_ok, failure = rnacentral.validate_sequence(
+                    accession, start, end, stockholm_seq, verbose=verbose)
+            except rnacentral.RNAcentralError as e:
+                raise RNAcentralUnavailableError(f"{e}. Try again later") from e
             if verbose:
                 print(f"  {seq_name}: " + ("validated OK (RNAcentral)" if ncbi_ok
                                           else f"RNAcentral validation failed ({failure})"))
@@ -868,7 +1145,9 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
         if use_blast_fallback:
             if verbose:
                 print(f"    Trying BLAST fallback for {seq_name}...")
-            blast_result, is_accurate = blast_search(stockholm_seq, verbose=verbose)
+            hint = _accession_hint(seq_name)
+            blast_result, is_accurate = blast_search(
+                stockholm_seq, verbose=verbose, prefer_accession=hint[0] if hint else None)
             if is_accurate and blast_result:
                 # Re-validate the Stockholm sequence against the BLAST hit's accession
                 # to ensure the sequence data actually matches (required for MD5 check)
