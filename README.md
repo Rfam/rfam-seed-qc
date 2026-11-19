@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml/badge.svg)](https://github.com/Rfam/rfam-seed-qc/actions/workflows/tests.yml)
 [![Release](https://img.shields.io/github/v/release/Rfam/rfam-seed-qc)](https://github.com/Rfam/rfam-seed-qc/releases)
-[![Bioconda](https://img.shields.io/conda/vn/bioconda/rfam-seed-qc?label=bioconda)](https://anaconda.org/bioconda/rfam-seed-qc)
+[![Bioconda](https://img.shields.io/conda/vn/bioconda/rfam-seed-qc?label=bioconda)](https://bioconda.github.io/recipes/rfam-seed-qc/README.html)
 [![License](https://img.shields.io/github/license/Rfam/rfam-seed-qc)](LICENSE)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.8-blue)
 
