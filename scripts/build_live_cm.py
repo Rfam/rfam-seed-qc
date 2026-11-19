@@ -65,7 +65,8 @@ def download_desc(family):
 def _download(family, filename):
     url = f"{SVN_BASE_URL}/{family}/{filename}"
     result = subprocess.run(
-        ["wget", "-q", "-O", "-", url],
+        ["wget", "-q", "--tries=3", "--waitretry=5",
+         "--retry-on-http-error=429,500,502,503,504", "-O", "-", url],
         capture_output=True
     )
     # Some DESC files are not UTF-8 (e.g. Latin-1 author names): replace bad
@@ -101,14 +102,26 @@ def parse_thresholds(desc_text):
     return thresholds if "GA" in thresholds else None
 
 
-def extract_first_model(cm_text, family, thresholds=None):
+def parse_family_id(desc_text):
+    """Return the family name from the ID line of a DESC file (e.g. SNORD19),
+    or None if there is none."""
+    for line in (desc_text or "").splitlines():
+        m = re.match(r'^ID\s+(\S+)\s*$', line)
+        if m:
+            return m.group(1)
+    return None
+
+
+def extract_first_model(cm_text, family, thresholds=None, name=None):
     """Extract the first complete model and rename it to the family ID.
 
     An Infernal 1.1 model is two blocks, each ending with '//': the CM
     ('INFERNAL1/a ...') followed by its filter HMM ('HMMER3/f ...').
     cmpress and cmscan need both, so both are kept. NAME is 'SEED' in SVN
-    files; it is set to the family ID (e.g. RF00001) in both blocks, so
-    names are unique when all families are pressed into one database.
+    files and there is no ACC line. As in the released Rfam.cm, both blocks
+    get NAME set to name (the DESC ID, e.g. SNORD19; the family accession if
+    not given) and ACC set to the family accession (e.g. RF00569). NAME must
+    be unique in a pressed database; the caller ensures that.
 
     SVN CM files have no GA/TC/NC lines (Rfam keeps them in DESC), and
     cmscan --cut_ga fails on a database where any model lacks GA. With
@@ -122,13 +135,16 @@ def extract_first_model(cm_text, family, thresholds=None):
             or not blocks[1].startswith("HMMER3/")):
         return None
 
+    name = name or family
     renamed = []
     for block in blocks[:2]:
-        block, n = re.subn(r'^(NAME\s+)\S+', rf'\g<1>{family}', block,
-                           count=1, flags=re.MULTILINE)
-        if n != 1:
+        lines = [line for line in block.splitlines() if not re.match(r'^ACC\s', line)]
+        i = next((n for n, line in enumerate(lines) if re.match(r'^NAME\s', line)), None)
+        if i is None:
             return None
-        renamed.append(block)
+        width = len(re.match(r'^NAME\s+', lines[i]).group(0))  # keep the block's column
+        lines[i:i + 1] = ["NAME".ljust(width) + name, "ACC".ljust(width) + family]
+        renamed.append("\n".join(lines) + "\n")
 
     if thresholds:
         lines = [line for line in renamed[0].splitlines()
@@ -156,18 +172,29 @@ def build_live_cm(output_path, delay=0.1, press=True):
 
     downloaded = 0
     skipped = 0
+    failed_downloads = []
+    used_names = set()
 
     with open(output_path, "w") as out:
         for i, family in enumerate(families, 1):
             cm_text = download_cm(family)
-            thresholds = parse_thresholds(download_desc(family)) if cm_text else None
-            model = extract_first_model(cm_text, family, thresholds) if thresholds else None
+            desc_text = download_desc(family) if cm_text else None
+            thresholds = parse_thresholds(desc_text)
+            name = parse_family_id(desc_text)
+            if name in used_names:
+                print(f"Warning: {family}: ID {name} is already used by another family; "
+                      f"named {family} instead", file=sys.stderr, flush=True)
+            if not name or name in used_names:
+                name = family  # NAME must be unique in the pressed database
+            model = extract_first_model(cm_text, family, thresholds, name) if thresholds else None
             if model:
                 out.write(model)
+                used_names.add(name)
                 downloaded += 1
             else:
-                if not cm_text:
-                    reason = "could not download CM"
+                if not cm_text or not desc_text:
+                    reason = "could not download " + ("CM" if not cm_text else "DESC")
+                    failed_downloads.append(family)
                 elif not thresholds:
                     reason = "no GA threshold in DESC (needed for cmscan --cut_ga)"
                 else:
@@ -183,6 +210,15 @@ def build_live_cm(output_path, delay=0.1, press=True):
 
     print(f"Done. Downloaded {downloaded} CMs, skipped {skipped}.")
     print(f"Output: {output_path}")
+
+    if failed_downloads:
+        # Network trouble, not a problem with the families: do not let an
+        # incomplete database pass as complete (the workflow would commit it)
+        print(f"Error: {len(failed_downloads)} famil{'y' if len(failed_downloads) == 1 else 'ies'} "
+              f"could not be downloaded after retries ({', '.join(failed_downloads[:10])}"
+              f"{', ...' if len(failed_downloads) > 10 else ''}). Run again later.",
+              file=sys.stderr)
+        sys.exit(1)
 
     if press:
         print("Running cmpress...")

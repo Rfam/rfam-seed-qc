@@ -18,7 +18,8 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from scripts.build_live_cm import extract_first_model, parse_thresholds  # noqa: E402
+from scripts.build_live_cm import (  # noqa: E402
+    extract_first_model, parse_family_id, parse_thresholds)
 
 SVN_CM = (REPO / "tests" / "fixtures" / "cm" / "RF00005_svn.CM").read_text()
 DESC = "ID   tRNA\nGA   29.00\nTC   29.00\nNC   28.90\nTP   Gene; tRNA;\n"
@@ -27,17 +28,30 @@ TRNA = "GCGGATTTAGCTCAGTTGGGAGAGCGCCAGACTGAAGATCTGGAGGTCCTGTGTTCGATCCACAGAATTCGC
 
 def _headers(model):
     return [line for line in model.splitlines()
-            if line.startswith(("INFERNAL1/", "HMMER3/", "NAME", "//"))]
+            if line.startswith(("INFERNAL1/", "HMMER3/", "NAME", "ACC", "//"))]
 
 
 def test_keeps_cm_and_filter_hmm_renamed():
-    model = extract_first_model(SVN_CM, "RF00005")
-    assert [h.split()[0] for h in _headers(model)] == [
-        "INFERNAL1/a", "NAME", "//", "HMMER3/f", "NAME", "//"]
-    assert [h.split()[1] for h in _headers(model) if h.startswith("NAME")] == [
-        "RF00005", "RF00005"]
-    assert "SEED" not in model.split("\n", 2)[1]
+    model = extract_first_model(SVN_CM, "RF00005", name="tRNA")
+    assert _headers(model) == [
+        "INFERNAL1/a [1.1.4 | Dec 2020]", "NAME     tRNA", "ACC      RF00005", "//",
+        "HMMER3/f [3.3.2 | Nov 2020]", "NAME  tRNA", "ACC   RF00005", "//"]
+    assert "SEED" not in model
     assert model.endswith("//\n")
+
+
+def test_name_defaults_to_accession_and_acc_is_not_duplicated():
+    model = extract_first_model(SVN_CM, "RF00005")
+    again = extract_first_model(model, "RF00005", name="tRNA")
+    assert [h for h in _headers(again) if h.startswith(("NAME", "ACC"))] == [
+        "NAME     tRNA", "ACC      RF00005", "NAME  tRNA", "ACC   RF00005"]
+    assert "NAME     RF00005" in model
+
+
+def test_parse_family_id():
+    assert parse_family_id(DESC) == "tRNA"
+    assert parse_family_id("AC   RF00005\n") is None
+    assert parse_family_id(None) is None
 
 
 def test_ignores_blocks_after_first_model():
@@ -79,20 +93,22 @@ def test_inserts_thresholds_after_null_in_cm_block_only():
                     reason="Infernal not installed")
 def test_output_presses_and_scans(tmp_path):
     cm = tmp_path / "live.cm"
-    cm.write_text(extract_first_model(SVN_CM, "RF00005", parse_thresholds(DESC)))
+    cm.write_text(extract_first_model(SVN_CM, "RF00005", parse_thresholds(DESC), "tRNA"))
     subprocess.run(["cmpress", str(cm)], check=True, capture_output=True)
     query = tmp_path / "q.fa"
     query.write_text(f">q\n{TRNA}\n")
     tbl = tmp_path / "q.tbl"
     subprocess.run(["cmscan", "--cut_ga", "--tblout", str(tbl), str(cm), str(query)],
                    check=True, capture_output=True)
-    hits = [line.split()[0] for line in tbl.read_text().splitlines()
+    hits = [line.split()[:2] for line in tbl.read_text().splitlines()
             if not line.startswith("#")]
-    assert hits == ["RF00005"]
+    assert hits == [["tRNA", "RF00005"]]
 
 
-# The validator must say when the known-family check could not run, even
-# without -v: a silent failure looks exactly like "no known families matched".
+# The validator must show known-family hits, and say when the check could
+# not run, even without -v: a silent failure looks exactly like "no known
+# families matched". Output goes to stdout (captured in the report), or to
+# stderr with --output-mode stdout.
 import validate_stockholm  # noqa: E402
 
 ENTRIES = [("q/1-76", TRNA)]
@@ -101,7 +117,7 @@ ENTRIES = [("q/1-76", TRNA)]
 def test_cmscan_missing_is_reported(monkeypatch, capsys):
     monkeypatch.setattr(validate_stockholm.shutil, "which", lambda name: None)
     assert validate_stockholm.filter_known_families(ENTRIES, "db.cm") == []
-    assert "known Rfam families were NOT checked" in capsys.readouterr().err
+    assert "known Rfam families were NOT checked" in capsys.readouterr().out
 
 
 @pytest.mark.skipif(not shutil.which("cmscan"), reason="Infernal not installed")
@@ -111,9 +127,9 @@ def test_cmscan_failure_is_reported(tmp_path, capsys):
     cm.write_text(extract_first_model(SVN_CM, "RF00005"))
     subprocess.run(["cmpress", str(cm)], check=True, capture_output=True)
     assert validate_stockholm.filter_known_families(ENTRIES, str(cm)) == []
-    err = capsys.readouterr().err
-    assert "cmscan failed, known Rfam families were NOT checked" in err
-    assert "GA bit threshold unavailable" in err
+    out = capsys.readouterr().out
+    assert "cmscan failed, known Rfam families were NOT checked" in out
+    assert "GA bit threshold unavailable" in out
 
 
 def test_cmscan_exception_is_reported(monkeypatch, capsys):
@@ -123,4 +139,49 @@ def test_cmscan_exception_is_reported(monkeypatch, capsys):
         raise OSError("cannot run")
     monkeypatch.setattr(validate_stockholm.subprocess, "Popen", boom)
     assert validate_stockholm.filter_known_families(ENTRIES, "db.cm") == []
-    assert "cmscan filtering failed, known Rfam families were NOT checked" in capsys.readouterr().err
+    assert "cmscan filtering failed, known Rfam families were NOT checked" in capsys.readouterr().out
+
+
+def _fake_svn(monkeypatch, cm_files, desc_files):
+    from scripts import build_live_cm as b
+    monkeypatch.setattr(b, "fetch_family_list", lambda: sorted(cm_files))
+    monkeypatch.setattr(b, "download_cm", cm_files.get)
+    monkeypatch.setattr(b, "download_desc", desc_files.get)
+    return b
+
+
+def test_build_fails_if_a_download_fails(monkeypatch, tmp_path, capsys):
+    b = _fake_svn(monkeypatch, {"RF00005": SVN_CM, "RF00006": None}, {"RF00005": DESC})
+    with pytest.raises(SystemExit) as e:
+        b.build_live_cm(str(tmp_path / "live.cm"), delay=0, press=False)
+    assert e.value.code == 1
+    assert "could not be downloaded after retries (RF00006)" in capsys.readouterr().err
+
+
+def test_build_names_from_desc_and_keeps_names_unique(monkeypatch, tmp_path, capsys):
+    b = _fake_svn(monkeypatch, {"RF00005": SVN_CM, "RF00006": SVN_CM},
+                  {"RF00005": DESC, "RF00006": DESC})   # same ID in both
+    out = tmp_path / "live.cm"
+    b.build_live_cm(str(out), delay=0, press=False)
+    names = [line.split()[1] for line in out.read_text().splitlines()
+             if line.startswith(("NAME", "ACC"))]
+    assert names == ["tRNA", "RF00005", "tRNA", "RF00005",
+                     "RF00006", "RF00006", "RF00006", "RF00006"]
+    assert "ID tRNA is already used by another family" in capsys.readouterr().err
+
+
+@pytest.mark.skipif(not (shutil.which("cmpress") and shutil.which("cmscan")),
+                    reason="Infernal not installed")
+@pytest.mark.parametrize("to_stderr", [False, True])
+def test_hits_are_shown_without_verbose(tmp_path, capsys, to_stderr):
+    cm = tmp_path / "live.cm"
+    cm.write_text(extract_first_model(SVN_CM, "RF00005", parse_thresholds(DESC), "tRNA"))
+    subprocess.run(["cmpress", str(cm)], check=True, capture_output=True)
+    details = validate_stockholm.filter_known_families(
+        ENTRIES, str(cm), out=sys.stderr if to_stderr else None)
+    assert len(details) == 1 and "matches RF00005 (tRNA)" in details[0]
+    captured = capsys.readouterr()
+    shown, other = (captured.err, captured.out) if to_stderr else (captured.out, captured.err)
+    assert "q/1-76: matches RF00005 (tRNA)" in shown
+    assert "1 sequence(s) match known Rfam families" in shown
+    assert other == ""
