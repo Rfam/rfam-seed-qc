@@ -153,16 +153,8 @@ def validate_stockholm_file(filepath):
     }
 
 
-def find_cm_db(filepath):
-    """Auto-detect Rfam.cm in the same directory as the input file."""
-    input_dir = Path(filepath).parent
-    rfam_cm = input_dir / 'Rfam.cm'
-    if rfam_cm.exists():
-        return str(rfam_cm)
-    return None
-
-
-def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_threshold=CMSCAN_MAX_EVALUE):
+def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_threshold=CMSCAN_MAX_EVALUE,
+                          out=None):
     """
     Check sequences against existing Rfam families using cmscan.
 
@@ -174,13 +166,19 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
         cm_db: Path to Rfam CM database file
         verbose: Print progress
         evalue_threshold: E-value cutoff for warnings (default 1e-3; lower = stricter)
+        out: stream for hits and failure warnings, which are shown even
+            without verbose (default sys.stdout, so the report includes them;
+            sys.stderr keeps --output-mode stdout a clean alignment)
 
     Returns:
         list: hit_details list of warning strings for reporting
     """
+    out = out or sys.stdout
     if not shutil.which('cmscan'):
-        if verbose:
-            print("  Warning: cmscan not found. Install Infernal to filter known Rfam families.")
+        # Always shown: otherwise a skipped check looks exactly like
+        # "no known families matched"
+        print("  Warning: cmscan not found; known Rfam families were NOT checked. "
+              "Install Infernal to filter known Rfam families.", file=out)
         return []
 
     hit_details = []
@@ -204,7 +202,7 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
             cm_db, fasta_path
         ]
         if verbose:
-            print(f"  Scanning against known Rfam families ({cm_db}), using GA thresholds...")
+            print(f"  Scanning against known Rfam families ({cm_db}), using GA thresholds...", file=out)
 
         # cmscan emits exactly one 'Query:' line per input sequence, in order, so
         # counting them as stdout streams reports real progress through the scan.
@@ -227,7 +225,7 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
                     percent = scanned / total_queries * 100
                     while milestones and percent >= milestones[0]:
                         reached = milestones.pop(0)
-                        print(f"    {reached}% scanned ({scanned}/{total_queries} sequences)")
+                        print(f"    {reached}% scanned ({scanned}/{total_queries} sequences)", file=out)
                 returncode = process.wait()
             finally:
                 # Whatever ends the read loop early — Ctrl-C, a broken stdout pipe,
@@ -239,9 +237,9 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
                 process.stdout.close()
 
         if returncode != 0:
-            if verbose:
-                with open(stderr_path) as f:
-                    print(f"  Warning: cmscan failed: {f.read().strip()}")
+            with open(stderr_path) as f:
+                print(f"  Warning: cmscan failed, known Rfam families were NOT checked "
+                      f"({cm_db}): {f.read().strip()}", file=out)
             return []
 
         # Parse tblout — keep best hit per sequence (first occurrence)
@@ -275,23 +273,23 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
                     warned.append(seq_name)
                     detail = f"  {seq_name}: matches {family_acc} ({family_name}), E-value={evalue_str} -- WARNING"
                     hit_details.append(detail)
-                    if verbose:
-                        print(detail)
+                    print(detail, file=out)  # always: the curator must see these
                 else:
                     if verbose:
-                        print(f"  {seq_name}: weak hit to {family_acc} ({family_name}), E-value={evalue_str} -- kept")
+                        print(f"  {seq_name}: weak hit to {family_acc} ({family_name}), E-value={evalue_str} -- kept",
+                          file=out)
 
-        if verbose:
-            if warned:
-                print(f"  {len(warned)} sequence(s) match known Rfam families (see warnings above).")
-            else:
-                print("  No sequences significantly match known Rfam families.")
+        if warned:
+            print(f"  {len(warned)} sequence(s) match known Rfam families (see warnings above).",
+                  file=out)
+        elif verbose:
+            print("  No sequences significantly match known Rfam families.", file=out)
 
         return hit_details
 
     except Exception as e:
-        if verbose:
-            print(f"  Warning: cmscan filtering failed: {e}")
+        print(f"  Warning: cmscan filtering failed, known Rfam families were NOT checked: {e}",
+              file=out)
         return []
     finally:
         if tmpdir:
@@ -306,7 +304,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         filepath: Path to input Stockholm file
         output_mode: 'stdout' to print to stdout, 'file' to create _corrected file
         verbose: Print progress messages
-        cm_db: Path to Rfam CM database for filtering known families (auto-detected if None)
+        cm_db: Path to Rfam CM database for filtering known families (None: no check)
 
     Returns:
         tuple: (success, num_fixes_applied, output_path)
@@ -329,7 +327,8 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
 
     # Check sequences against known Rfam families (warning only, no removal)
     if cm_db:
-        filter_known_families(sequence_entries, cm_db, verbose=verbose)
+        filter_known_families(sequence_entries, cm_db, verbose=verbose,
+                              out=sys.stderr if output_mode == 'stdout' else sys.stdout)
 
     # Fix missing coordinates if any
     if missing_coords:

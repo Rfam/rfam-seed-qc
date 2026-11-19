@@ -3,10 +3,17 @@ name: Build Live Rfam CM Database
 on:
   workflow_dispatch:
 
+# A new run replaces one still in progress (the newer build is what we want)
+concurrency:
+  group: build-live-cm
+  cancel-in-progress: true
+
 jobs:
   build-cm:
     name: Build Rfam_live.cm from SVN
     runs-on: ubuntu-latest
+    # A full build takes about an hour; stop a stuck run instead of the 6 h default
+    timeout-minutes: 180
     permissions:
       contents: write
       pull-requests: write

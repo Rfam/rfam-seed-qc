@@ -186,7 +186,7 @@ When building a new Rfam family, you can check whether sequences already belong 
 3. **Press the database**: `cmpress Rfam.cm` (generates `.i1f`, `.i1i`, `.i1m`, `.i1p` index files)
 4. **Install Infernal**: `cmscan` must be available in your PATH (http://eddylab.org/infernal/)
 
-cmscan is run with `--cut_ga` to use each model's GA (gathering) threshold, matching how Rfam curates family membership. Hits that pass GA are flagged as warnings but **not removed**. An additional E-value safety filter (`CMSCAN_MAX_EVALUE` in `scripts/config.py`, default 1e-3) is applied on top.
+cmscan is run with `--cut_ga` to use each model's GA (gathering) threshold, matching how Rfam curates family membership. Hits that pass GA are flagged as warnings but **not removed**. An additional E-value safety filter (`CMSCAN_MAX_EVALUE` in `scripts/config.py`, default 1e-3) is applied on top. Hits are always shown and saved in the report, also without `-v`. If the check cannot run (cmscan missing, or a database cmscan rejects), a warning says so, so a failed check is never mistaken for "no known families". With `--output-mode stdout`, these messages go to stderr so the output stays a clean alignment.
 
 ```bash
 # Check for known families during fixing
@@ -208,7 +208,7 @@ python3 scripts/build_live_cm.py --output /path/to/Rfam_live.cm
 python3 validate_stockholm.py -v --fix --cm-db Rfam_live.cm input.sto
 ```
 
-This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/` (publicly readable, no credentials needed) and concatenates them into a single pressed CM database. Requires `wget` and `cmpress` (Infernal) in your PATH.
+This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/` (publicly readable, no credentials needed) and concatenates them into a single pressed CM database. Each family keeps its CM and the filter HMM that follows it (cmpress and cmscan need both), named as in the released `Rfam.cm`: `NAME` from the `ID` line of the family's `DESC` (e.g. `SNORD19`) and `ACC` set to the family ID (e.g. `RF00569`). SVN CM files have no gathering thresholds, so GA, TC and NC are read from each family's `DESC` file and added to its CM, as in the released `Rfam.cm` (the validator scans with `--cut_ga`). Families whose CM file is incomplete or whose `DESC` has no GA are skipped with a warning. Downloads are retried; if a family still cannot be downloaded, the build stops with an error rather than produce an incomplete database. The database is built in a temporary file, so a failed or interrupted build leaves an existing database at the output path unchanged; a successful one replaces it and its old index files, so rebuilding into the same path works. Requires `wget` and `cmpress` (Infernal) in your PATH.
 
 ### Pairwise Identity
 
