@@ -208,7 +208,7 @@ python3 scripts/build_live_cm.py --output /path/to/Rfam_live.cm
 python3 validate_stockholm.py -v --fix --cm-db Rfam_live.cm input.sto
 ```
 
-This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/` (publicly readable, no credentials needed) and concatenates them into a single pressed CM database. Requires `wget` and `cmpress` (Infernal) in your PATH.
+This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/` (publicly readable, no credentials needed) and concatenates them into a single pressed CM database. Each family keeps its CM and the filter HMM that follows it (cmpress and cmscan need both), with both named after the family ID (e.g. `RF00005`). SVN CM files have no gathering thresholds, so GA, TC and NC are read from each family's `DESC` file and added to its CM, as in the released `Rfam.cm` (the validator scans with `--cut_ga`). Families whose CM file is incomplete or whose `DESC` has no GA are skipped with a warning. Requires `wget` and `cmpress` (Infernal) in your PATH.
 
 ### Pairwise Identity
 

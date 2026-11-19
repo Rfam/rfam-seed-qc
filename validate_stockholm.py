@@ -179,8 +179,10 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
         list: hit_details list of warning strings for reporting
     """
     if not shutil.which('cmscan'):
-        if verbose:
-            print("  Warning: cmscan not found. Install Infernal to filter known Rfam families.")
+        # Always shown (stderr, so --stdout output stays clean): otherwise a
+        # skipped check looks exactly like "no known families matched"
+        print("  Warning: cmscan not found; known Rfam families were NOT checked. "
+              "Install Infernal to filter known Rfam families.", file=sys.stderr)
         return []
 
     hit_details = []
@@ -239,9 +241,9 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
                 process.stdout.close()
 
         if returncode != 0:
-            if verbose:
-                with open(stderr_path) as f:
-                    print(f"  Warning: cmscan failed: {f.read().strip()}")
+            with open(stderr_path) as f:
+                print(f"  Warning: cmscan failed, known Rfam families were NOT checked "
+                      f"({cm_db}): {f.read().strip()}", file=sys.stderr)
             return []
 
         # Parse tblout — keep best hit per sequence (first occurrence)
@@ -290,8 +292,8 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
         return hit_details
 
     except Exception as e:
-        if verbose:
-            print(f"  Warning: cmscan filtering failed: {e}")
+        print(f"  Warning: cmscan filtering failed, known Rfam families were NOT checked: {e}",
+              file=sys.stderr)
         return []
     finally:
         if tmpdir:

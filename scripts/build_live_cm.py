@@ -2,8 +2,9 @@
 """
 Build a live Rfam CM database from the Rfam SVN repository.
 
-Downloads the latest CM files for all Rfam families from the SVN repo
-and concatenates them into a single pressed CM database.
+Downloads the latest CM files for all Rfam families from the SVN repo, adds
+the GA/TC/NC thresholds from each family's DESC file, and concatenates them
+into a single pressed CM database.
 
 Usage:
     python3 scripts/build_live_cm.py
@@ -53,44 +54,94 @@ def fetch_family_list():
 
 def download_cm(family):
     """Download the CM file for a single family. Returns CM text or None."""
-    url = f"{SVN_BASE_URL}/{family}/CM"
+    return _download(family, "CM")
+
+
+def download_desc(family):
+    """Download the DESC file for a single family. Returns its text or None."""
+    return _download(family, "DESC")
+
+
+def _download(family, filename):
+    url = f"{SVN_BASE_URL}/{family}/{filename}"
     result = subprocess.run(
         ["wget", "-q", "-O", "-", url],
-        capture_output=True, text=True
+        capture_output=True
     )
-    if result.returncode != 0 or not result.stdout.strip():
+    # Some DESC files are not UTF-8 (e.g. Latin-1 author names): replace bad
+    # bytes rather than crash. Model and threshold lines are plain ASCII.
+    text = result.stdout.decode("utf-8", errors="replace")
+    if result.returncode != 0 or not text.strip():
         return None
-    return result.stdout
+    return text
 
 
-def extract_first_model(cm_text, family):
-    """Extract the first CM model and rename its NAME to the family ID.
+def _split_blocks(text):
+    """Split a model file into blocks, each ending with its '//' line."""
+    blocks, current = [], []
+    for line in text.splitlines():
+        current.append(line)
+        if line.strip() == "//":
+            blocks.append("\n".join(current) + "\n")
+            current = []
+    return blocks
 
-    SVN CM files may contain multiple models (e.g., calibrated + uncalibrated),
-    each terminated by '//'. We keep only the first model (the calibrated one)
-    and rename its NAME from 'SEED' to the family ID (e.g., RF00001) to ensure
-    unique primary keys when pressed into a single database.
+
+def parse_thresholds(desc_text):
+    """Read the GA, TC and NC bit-score thresholds from a family DESC file.
+
+    Returns {'GA': 29.0, 'TC': ..., 'NC': ...} (TC and NC only if present),
+    or None if there is no valid GA line.
     """
-    # Find the first complete model: everything up to and including the first '//'
-    end = cm_text.find("\n//\n")
-    if end == -1:
-        # Try without trailing newline (end of file)
-        end = cm_text.find("\n//")
-        if end == -1:
-            return None
-        model = cm_text[:end + 3]  # include \n//
-    else:
-        model = cm_text[:end + 4]  # include \n//\n
+    thresholds = {}
+    for line in (desc_text or "").splitlines():
+        m = re.match(r'^(GA|TC|NC)\s+(-?\d+(?:\.\d+)?)\s*$', line)
+        if m:
+            thresholds.setdefault(m.group(1), float(m.group(2)))
+    return thresholds if "GA" in thresholds else None
 
-    # Rename NAME field to the family ID
-    model = re.sub(
-        r'^(NAME\s+)\S+',
-        rf'\g<1>{family}',
-        model,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    return model
+
+def extract_first_model(cm_text, family, thresholds=None):
+    """Extract the first complete model and rename it to the family ID.
+
+    An Infernal 1.1 model is two blocks, each ending with '//': the CM
+    ('INFERNAL1/a ...') followed by its filter HMM ('HMMER3/f ...').
+    cmpress and cmscan need both, so both are kept. NAME is 'SEED' in SVN
+    files; it is set to the family ID (e.g. RF00001) in both blocks, so
+    names are unique when all families are pressed into one database.
+
+    SVN CM files have no GA/TC/NC lines (Rfam keeps them in DESC), and
+    cmscan --cut_ga fails on a database where any model lacks GA. With
+    thresholds (from parse_thresholds), they are written into the CM block
+    after its NULL line, where the released Rfam.cm has them.
+
+    Returns None if the file does not start with a CM followed by its HMM.
+    """
+    blocks = _split_blocks(cm_text)
+    if (len(blocks) < 2 or not blocks[0].startswith("INFERNAL1/")
+            or not blocks[1].startswith("HMMER3/")):
+        return None
+
+    renamed = []
+    for block in blocks[:2]:
+        block, n = re.subn(r'^(NAME\s+)\S+', rf'\g<1>{family}', block,
+                           count=1, flags=re.MULTILINE)
+        if n != 1:
+            return None
+        renamed.append(block)
+
+    if thresholds:
+        lines = [line for line in renamed[0].splitlines()
+                 if not re.match(r'^(GA|TC|NC)\s', line)]
+        null = next((i for i, line in enumerate(lines) if line.startswith("NULL ")), None)
+        if null is None:
+            return None
+        cutoffs = [f"{tag:<9}{thresholds[tag]:.2f}" for tag in ("GA", "TC", "NC")
+                   if tag in thresholds]
+        lines[null + 1:null + 1] = cutoffs
+        renamed[0] = "\n".join(lines) + "\n"
+
+    return "".join(renamed)
 
 
 def build_live_cm(output_path, delay=0.1, press=True):
@@ -109,20 +160,23 @@ def build_live_cm(output_path, delay=0.1, press=True):
     with open(output_path, "w") as out:
         for i, family in enumerate(families, 1):
             cm_text = download_cm(family)
-            if cm_text:
-                model = extract_first_model(cm_text, family)
-                if model:
-                    out.write(model)
-                    if not model.endswith("\n"):
-                        out.write("\n")
-                    downloaded += 1
-                else:
-                    skipped += 1
+            thresholds = parse_thresholds(download_desc(family)) if cm_text else None
+            model = extract_first_model(cm_text, family, thresholds) if thresholds else None
+            if model:
+                out.write(model)
+                downloaded += 1
             else:
+                if not cm_text:
+                    reason = "could not download CM"
+                elif not thresholds:
+                    reason = "no GA threshold in DESC (needed for cmscan --cut_ga)"
+                else:
+                    reason = "CM file is not a CM followed by its filter HMM"
+                print(f"Warning: {family}: {reason}; skipped", file=sys.stderr, flush=True)
                 skipped += 1
 
             if i % 100 == 0:
-                print(f"Downloaded {i}/{total} families...")
+                print(f"Downloaded {i}/{total} families...", flush=True)
 
             if delay > 0:
                 time.sleep(delay)
