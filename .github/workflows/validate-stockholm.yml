@@ -14,6 +14,8 @@ jobs:
   validate-and-fix:
     name: Validate and Fix Stockholm MSA Files
     runs-on: ubuntu-latest
+    # Stop a run stuck on NCBI/BLAST instead of the 6 h default
+    timeout-minutes: 180
     permissions:
       contents: write
     env:
