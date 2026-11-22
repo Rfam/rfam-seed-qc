@@ -3,6 +3,8 @@ Offline tests: --fix must not crash on files the validator accepts, and must
 stop (not remove sequences) when a sequence source cannot be reached.
 """
 
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -130,3 +132,21 @@ def test_blast_rescues_that_do_not_collide_are_all_kept(tmp_path, monkeypatch):
                    f'# STOCKHOLM 1.0\n\nBAD1.1/1-18  {SEQ}\nBAD2.1/1-18  {SEQ}\n//\n',
                    {}, {'BAD1.1/1-18': 'ACC.1/5-22', 'BAD2.1/1-18': 'ACC.1/105-122'})
     assert rows == ['ACC.1/5-22', 'ACC.1/105-122']
+
+
+def test_gs_lines_follow_renamed_sequences(tmp_path, monkeypatch):
+    """#=GS lines must use the final name (esl-reformat rejects the old one)."""
+    rows, lines = _fix(tmp_path, monkeypatch,
+                       '# STOCKHOLM 1.0\n\n#=GS ACC.1 DE coordinates added\n'
+                       '#=GS BAD1.1/1-18 DE renamed by BLAST\n#=GS OTHER.1/1-18 DE unchanged\n\n'
+                       f'ACC.1        {SEQ}\nBAD1.1/1-18  {SEQ}\nOTHER.1/1-18 {SEQ}\n//\n',
+                       {'ACC.1': 'ACC.1/5-22'}, {'BAD1.1/1-18': 'NEW.1/5-22'})
+    assert rows == ['ACC.1/5-22', 'NEW.1/5-22', 'OTHER.1/1-18']
+    assert [' '.join(line.split()) for line in lines if line.startswith('#=GS')] == [
+        '#=GS ACC.1/5-22 DE coordinates added',
+        '#=GS NEW.1/5-22 DE renamed by BLAST',
+        '#=GS OTHER.1/1-18 DE unchanged']
+    if shutil.which('esl-reformat'):
+        out = tmp_path / 'input_corrected.sto'
+        assert subprocess.run(['esl-reformat', 'stockholm', str(out)],
+                              capture_output=True).returncode == 0

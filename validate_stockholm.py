@@ -560,7 +560,9 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         if orig_seq_id is None:
             corrected_lines.append(ann_line)
         elif orig_seq_id in kept_original_names:
-            corrected_lines.append(ann_line)
+            # Use the sequence's final name (coordinates added or BLAST rename)
+            _, _, rest = ann_line.split(None, 2)
+            corrected_lines.append(f"#=GS {id_mapping.get(orig_seq_id, orig_seq_id)} {rest}")
 
     # 4. Sequences with their #=GR annotations
     for new_name, seq_content in processed_sequences:
