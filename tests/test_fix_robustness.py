@@ -74,3 +74,59 @@ def test_fix_writes_stockholm_1_0_header(tmp_path, monkeypatch, header):
     assert lines[0] == '# STOCKHOLM 1.0'
     assert sum(line.startswith('# STOCKHOLM') for line in lines) == 1
     assert '#=GF ID   test' in lines
+
+
+# Repairs can give rows the same name, or overlapping coordinates, after the
+# duplicate and overlap checks: keep exactly one, never both or neither.
+
+def _fix(tmp_path, monkeypatch, text, mapping, blast_fixed):
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'fix_missing_coordinates',
+                        lambda *args, **kwargs: (dict(mapping), set()))
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: (set(), set(), set(), dict(blast_fixed)))
+    sto = tmp_path / 'input.sto'
+    sto.write_text(text)
+    success, _, output_path = validate_stockholm.fix_file(str(sto))
+    assert success
+    lines = Path(output_path).read_text().splitlines()
+    rows = [line.split()[0] for line in lines if line and not line.startswith(('#', '//'))]
+    return rows, lines
+
+
+def test_rows_given_the_same_name_by_coordinate_repair_keep_one(tmp_path, monkeypatch, capsys):
+    # same record and coordinates, different gaps: overlap removal used to drop both
+    rows, lines = _fix(tmp_path, monkeypatch,
+                       '# STOCKHOLM 1.0\n\n'
+                       f'ACC.1        {SEQ}--\n#=GR ACC.1 PP {"9" * 20}\n'
+                       f'ACC.1_copy   -{SEQ}-\n#=GR ACC.1_copy PP {"8" * 20}\n'
+                       f'OTHER.1/1-18 {SEQ}--\n//\n',
+                       {'ACC.1': 'ACC.1/5-22', 'ACC.1_copy': 'ACC.1/5-22'}, {})
+    assert rows == ['ACC.1/5-22', 'OTHER.1/1-18']
+    gr = [line for line in lines if line.startswith('#=GR')]
+    # the kept row's annotation only (all-gap columns are trimmed, so 18 left)
+    assert len(gr) == 1 and gr[0].endswith('9' * 18) and '8' not in gr[0]
+    assert 'same name as another row when coordinates were added' in capsys.readouterr().out
+
+
+def test_blast_rescues_with_the_same_name_keep_one(tmp_path, monkeypatch, capsys):
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nBAD1.1/1-18  {SEQ}\nBAD2.1/1-18  {SEQ}\nOTHER.1/1-18 {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22', 'BAD2.1/1-18': 'ACC.1/5-22'})
+    assert rows == ['ACC.1/5-22', 'OTHER.1/1-18']
+    assert 'BLAST placed at the same location as, or overlapping, another row' in capsys.readouterr().out
+
+
+def test_blast_rescue_overlapping_a_kept_row_is_removed(tmp_path, monkeypatch):
+    # the row checked under its own name wins over the BLAST rescue, even with a higher start
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nACC.1/10-27  {SEQ}\nBAD1.1/1-18  {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22'})
+    assert rows == ['ACC.1/10-27']
+
+
+def test_blast_rescues_that_do_not_collide_are_all_kept(tmp_path, monkeypatch):
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nBAD1.1/1-18  {SEQ}\nBAD2.1/1-18  {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22', 'BAD2.1/1-18': 'ACC.1/105-122'})
+    assert rows == ['ACC.1/5-22', 'ACC.1/105-122']

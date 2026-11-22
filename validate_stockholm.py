@@ -382,8 +382,10 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # Apply coordinate fixes, remove bad sequences, and remove duplicates
     processed_sequences = []  # List of (new_name, seq_content)
     seen_sequences = {}
+    used_names = set()
     num_duplicates = num_parser_dupes
     num_removed = 0
+    num_collisions = 0
 
     for seq_name, seq_content in sequence_entries:
         # Skip sequences marked for removal
@@ -398,12 +400,25 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         accession, coords = fixable_errors.parse_sequence_identifier(new_name)
         key = (accession, coords, seq_content)
 
-        if key not in seen_sequences:
-            seen_sequences[key] = True
-            processed_sequences.append((new_name, seq_content))
-        else:
+        if key in seen_sequences:
             num_duplicates += 1
+        elif new_name in used_names:
+            # Coordinate repair gave two rows the same name (same record and
+            # coordinates, different gaps). Keep the first: overlap removal
+            # works by name and would otherwise drop both.
+            num_collisions += 1
+            if verbose:
+                print(f"  {seq_name}: same name as another row after adding coordinates "
+                      f"({new_name}); kept the first")
+        else:
+            seen_sequences[key] = True
+            used_names.add(new_name)
+            processed_sequences.append((new_name, seq_content))
 
+    if num_collisions:
+        print(f"  Removed {num_collisions} row(s) that got the same name as another row "
+              f"when coordinates were added")
+    num_duplicates += num_collisions
     num_fixes += num_duplicates
 
     # Check for overlapping sequences and remove them. When copies of an
@@ -470,14 +485,42 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         processed_sequences = [(name, seq) for name, seq in processed_sequences if name not in invalid_seqs]
         num_removed += len(invalid_seqs)
 
+    # BLAST renames come after the duplicate and overlap checks above, so a
+    # rescued row can now share its name with, or overlap, another kept row.
+    # Every row left matches its source, so keep: the first of rows with the
+    # same name; among overlapping rows, one that kept its own name (checked
+    # directly against its record) before a BLAST rescue, then the lower start.
+    if blast_fixed:
+        final, names = [], set()
+        for name, seq in processed_sequences:
+            if name not in names:
+                names.add(name)
+                final.append((name, seq))
+        rescued = set(blast_fixed.values())
+        overlapping = fixable_errors.find_overlapping_sequences(
+            final, preferred={name for name, _ in final if name not in rescued})
+        final = [(name, seq) for name, seq in final if name not in overlapping]
+        dropped = len(processed_sequences) - len(final)
+        if dropped:
+            print(f"  Removed {dropped} row(s) that BLAST placed at the same location as, or "
+                  f"overlapping, another row")
+            num_removed += dropped
+        processed_sequences = final
+
     # Build set of kept sequence names (final names after all mappings)
     kept_seq_names = {name for name, _ in processed_sequences}
-    # Also track which original names were kept (for GR/GS lookup)
+    # Also track which original names were kept (for GR/GS lookup). When
+    # several original rows end up with one name, only the first is kept, so
+    # only its annotations are: otherwise #=GR lines would be written twice.
     kept_original_names = set()
+    names_taken = set()
     for seq_name, _ in sequence_entries:
+        if seq_name in to_remove:
+            continue
         mapped = id_mapping.get(seq_name, seq_name)
-        if mapped in kept_seq_names:
+        if mapped in kept_seq_names and mapped not in names_taken:
             kept_original_names.add(seq_name)
+            names_taken.add(mapped)
 
     # Compute column width: max of sequence names, #=GR tags, and #=GC tags
     name_width = 30
@@ -525,7 +568,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         # Output #=GR annotations for this sequence
         for (gr_seq, gr_feat), gr_data in gr_annotations.items():
             mapped_name = id_mapping.get(gr_seq, gr_seq)
-            if mapped_name == new_name:
+            if mapped_name == new_name and gr_seq in kept_original_names:
                 tag = f"#=GR {new_name} {gr_feat}"
                 corrected_lines.append(f"{tag:<{name_width}} {gr_data}\n")
 

@@ -158,7 +158,7 @@ With `--local`, the lookup and the BLAST search use the local database instead (
 
 ### Overlap Detection and Removal
 
-Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, the overlapping copies are first checked against NCBI (or the local database, or RNAcentral), without BLAST, and copies that match are kept before those that don't. Then overlapping sequences are removed, keeping the lower start coordinate among equally good copies. This keeps the correct copy when a shifted, wrong copy of the same region is also in the alignment.
+Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, the overlapping copies are first checked against NCBI (or the local database, or RNAcentral), without BLAST, and copies that match are kept before those that don't. Then overlapping sequences are removed, keeping the lower start coordinate among equally good copies. This keeps the correct copy when a shifted, wrong copy of the same region is also in the alignment. Repairs can also give two rows the same name or overlapping coordinates (coordinates added to two differently gapped copies of one sequence, or two rows placed at the same location by BLAST); then exactly one row is kept: the first, and a row checked under its own name before one renamed by BLAST.
 
 ### Sequence Validation
 
