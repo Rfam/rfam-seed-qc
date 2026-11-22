@@ -61,6 +61,13 @@ VALIDATION_CASES = [
      ['Sequences have inconsistent lengths']),
     ('invalid/no_sequences.sto', 1, 'INVALID',
      ['No sequences found in alignment']),
+    # Same name twice in one block with different data: neither row is dropped silently
+    ('invalid/conflicting_rows.sto', 1, 'INVALID',
+     ['Sequence name AC123456.1/1-4 is used for rows with different sequence data '
+      'in the same block (lines 3 and 4)']),
+    ('invalid/conflicting_rows_interleaved.sto', 1, 'INVALID',
+     ['Sequence name AC123456.1/1-4 is used for rows with different sequence data '
+      'in the same block (lines 7 and 9)']),
     ('fixable/RF00569_with_dup.so', 0, 'Valid but has fixable issues',
      ['Found 1 duplicate sequence(s)']),
     ('fixable/RF00569_with_overlap.so', 0, 'Valid but has fixable issues',

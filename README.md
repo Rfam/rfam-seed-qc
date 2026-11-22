@@ -93,6 +93,7 @@ Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path wit
 - No sequences found in alignment
 - **All sequences must have the same length**
 - **Sequences must not contain whitespace characters**
+- **A sequence name used twice in one block with different sequence data** (identical repeats are fixable duplicates)
 
 **Fixable Errors** (can be auto-corrected with `--fix`):
 - Duplicate sequences (same accession, coordinates, and sequence data)

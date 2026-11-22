@@ -102,6 +102,14 @@ def validate_stockholm_file(filepath):
     if not is_valid:
         fatal_error_list.append(error_msg)
     
+    # Same name twice in one block with different data: only the first row
+    # would be kept, and the tool cannot tell which one is right
+    for seq_name, first_line, other_line in parsed['conflicting_rows']:
+        fatal_error_list.append(
+            f"Sequence name {seq_name} is used for rows with different sequence data "
+            f"in the same block (lines {first_line} and {other_line}). Rename or remove "
+            f"one of them")
+
     # Check sequence length consistency
     is_valid, error_msg = fatal_errors.check_sequence_lengths(unique_sequences)
     if not is_valid:
