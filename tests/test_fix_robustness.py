@@ -54,3 +54,23 @@ def test_rnacentral_outage_stops_coordinate_fixing(tmp_path, monkeypatch):
     sto.write_text(f'# STOCKHOLM 1.0\n\nURS0000572555_562 {SEQ}\n//\n')
     with pytest.raises(fixable_errors.RNAcentralUnavailableError):
         fixable_errors.fix_missing_coordinates(str(sto))
+
+
+@pytest.mark.parametrize('header', ['# STOCKHOLM', '# STOCKHOLM 2.0', '# STOCKHOLM 1.0'])
+def test_fix_writes_stockholm_1_0_header(tmp_path, monkeypatch, header):
+    """A missing or other version is only a warning; --fix still runs and
+    writes a header Infernal accepts."""
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: (set(), set(), set(), {}))
+    sto = tmp_path / 'input.sto'
+    sto.write_text(f'{header}\n#=GF ID   test\n\n'
+                   f'X01.1/1-18   {SEQ}\nX02.1/1-18   {SEQ}\n'
+                   '#=GC SS_cons <<<..............>>>\n//\n')
+    assert validate_stockholm.validate_stockholm_file(str(sto))['is_valid']
+    success, _, output_path = validate_stockholm.fix_file(str(sto))
+    assert success
+    lines = Path(output_path).read_text().splitlines()
+    assert lines[0] == '# STOCKHOLM 1.0'
+    assert sum(line.startswith('# STOCKHOLM') for line in lines) == 1
+    assert '#=GF ID   test' in lines

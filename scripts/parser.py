@@ -144,7 +144,9 @@ def parse_stockholm_file(lines):
         parts = stripped.split(None, 1)
         if len(parts) >= 2:
             seq_name = parts[0]
-            seq_data = parts[1].replace(' ', '')
+            # Keep internal whitespace: it is invalid in sequence data (Easel
+            # rejects it), and the whitespace check must be able to see it
+            seq_data = parts[1]
 
             raw_sequence_entries.append((seq_name, seq_data, block_index))
 

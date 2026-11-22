@@ -7,21 +7,17 @@ These errors cannot be automatically fixed and must terminate execution.
 
 def check_header(lines):
     """
-    Check for required Stockholm header.
-    
+    Check for the required Stockholm header line. A missing or unexpected
+    version is only a warning (see stockholm_warnings.check_header_version).
+
     Args:
         lines: List of file lines
-        
+
     Returns:
         tuple: (is_valid, error_message, line_number)
     """
-    for i, line in enumerate(lines):
+    for line in lines:
         if line.strip().startswith('# STOCKHOLM'):
-            parts = line.strip().split()
-            if len(parts) >= 3:
-                version = parts[2]
-                if version != '1.0':
-                    return False, f"Non-standard Stockholm version '{version}' (expected 1.0)", i + 1
             return True, None, None
     return False, "Missing required '# STOCKHOLM 1.0' header", None
 

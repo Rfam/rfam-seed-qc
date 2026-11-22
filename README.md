@@ -92,7 +92,7 @@ Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path wit
 - Missing `//` terminator
 - No sequences found in alignment
 - **All sequences must have the same length**
-- **Sequences must not contain whitespace characters**
+- **Sequences must not contain whitespace characters** (including spaces inside the sequence data)
 - **A sequence name used twice in one block with different sequence data** (identical repeats are fixable duplicates)
 
 **Fixable Errors** (can be auto-corrected with `--fix`):
@@ -102,6 +102,7 @@ Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path wit
 
 **Warnings** (non-critical):
 - Sequences matching known Rfam families (when `--cm-db` is provided) — flagged but not removed
+- Stockholm header without a version, or with a version other than 1.0 (`--fix` writes `# STOCKHOLM 1.0`, which Infernal requires)
 - Missing 2D structure consensus annotation (`#=GC SS_cons`)
 - `#=GC SS_cons` length mismatch with sequence length
 - `#=GC SS_cons` invalid WUSS notation characters or unbalanced brackets (pseudoknots may use any letter pair, `Aa` to `Zz`)

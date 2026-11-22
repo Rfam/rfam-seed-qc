@@ -125,6 +125,30 @@ def validate_ss_cons_format(ss_cons_data):
     return warnings
 
 
+def check_header_version(lines):
+    """
+    Warn if the Stockholm header has no version or a version other than 1.0
+    (the only one there is). Easel (Infernal) rejects such files, so --fix
+    writes the header as '# STOCKHOLM 1.0'.
+
+    Returns:
+        str warning, or None
+    """
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('# STOCKHOLM'):
+            parts = stripped.split()
+            if len(parts) < 3:
+                problem = "has no version"
+            elif parts[2] != '1.0':
+                problem = f"has version '{parts[2]}'"
+            else:
+                return None
+            return (f"Stockholm header {problem} (expected '# STOCKHOLM 1.0'); "
+                    f"--fix writes '# STOCKHOLM 1.0'")
+    return None
+
+
 def check_line_length(lines, max_length=10000):
     """
     Check for lines exceeding Rfam alignment limits.

@@ -149,6 +149,10 @@ def validate_stockholm_file(filepath):
     warning_list.extend(structure_qc.check_pair_support(
         parsed['gc_annotations'].get('SS_cons'), sequence_entries))
     
+    version_warning = warnings.check_header_version(lines)
+    if version_warning:
+        warning_list.insert(0, version_warning)
+
     has_warning, warning_msgs = warnings.check_line_length(lines)
     if has_warning:
         warning_list.extend(warning_msgs)
@@ -490,8 +494,10 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # Build final corrected lines in proper Stockholm order
     corrected_lines = []
 
-    # 1. Header (# STOCKHOLM 1.0)
-    corrected_lines.extend(header_lines)
+    # 1. Header, always written as '# STOCKHOLM 1.0' (a missing or other
+    # version only gave a warning, but Easel/Infernal reject it)
+    corrected_lines.extend('# STOCKHOLM 1.0\n' if line.strip().startswith('# STOCKHOLM') else line
+                           for line in header_lines)
 
     # 2. File-level annotations (#=GF) - keep at top, then record which tool
     #    and version produced this file (replacing the note from any earlier run)
