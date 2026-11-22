@@ -178,3 +178,28 @@ def test_source_check_coordinates(tmp_path, monkeypatch, name, seq, ok):
 ])
 def test_parse_coordinates(coords, expected):
     assert fixable_errors.parse_coordinates(coords) == expected
+
+
+@pytest.mark.parametrize('verbose', [[], ['-v']])
+def test_output_mode_stdout_is_a_clean_alignment(tmp_path, monkeypatch, capsys, verbose):
+    """--fix --output-mode stdout: stdout holds only the corrected alignment
+    (it can be piped); status lines and warnings go to stderr."""
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: (set(), set(), set(), {}))
+    monkeypatch.setattr(sys, 'stdout', sys.stdout)   # restored after main() redirects it
+    sto = tmp_path / 'input.sto'
+    sto.write_text(f'# STOCKHOLM 1.0\n\nX01.1/1-18   {SEQ}\nX02.1/1-18   {SEQ}\n'
+                   '#=GC SS_cons <<<............>>>\n//\n')    # 18 columns, as the sequences
+    monkeypatch.setattr(sys, 'argv', ['rfam-seed-qc', *verbose, '--fix', '--output-mode', 'stdout', str(sto)])
+    assert validate_stockholm.main() == 0
+    out, err = capsys.readouterr()
+    assert out.startswith('# STOCKHOLM 1.0\n') and out.endswith('//\n')
+    assert out.splitlines().count('//') == 1 and 'passed validation' not in out
+    assert 'All 1 file(s) passed validation' in err
+    assert not list(tmp_path.glob('*_corrected*')) and not list(tmp_path.glob('*_Report*'))
+    if shutil.which('esl-reformat'):
+        piped = tmp_path / 'piped.sto'
+        piped.write_text(out)
+        assert subprocess.run(['esl-reformat', 'stockholm', str(piped)],
+                              capture_output=True).returncode == 0

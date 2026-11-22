@@ -323,7 +323,7 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
+def fix_file(filepath, output_mode='file', verbose=False, cm_db=None, alignment_out=None):
     """
     Fix fixable errors in a Stockholm file.
 
@@ -332,6 +332,8 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         output_mode: 'stdout' to print to stdout, 'file' to create _corrected file
         verbose: Print progress messages
         cm_db: Path to Rfam CM database for filtering known families (None: no check)
+        alignment_out: Stream for the corrected alignment in 'stdout' mode
+            (default sys.stdout)
 
     Returns:
         tuple: (success, num_fixes_applied, output_path)
@@ -644,8 +646,9 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
             print("  Warning: esl-reformat not found in PATH, skipping gap minimization")
 
     if output_mode == 'stdout':
-        for line in corrected_lines:
-            print(line, end='')
+        out = alignment_out or sys.stdout
+        out.writelines(corrected_lines)
+        out.flush()
         return True, num_fixes, None
     else:
         path = Path(filepath)
@@ -784,6 +787,12 @@ def main():
         run_info.append("  NCBI API key: used (from NCBI_API_KEY)")  # never print the key
 
     all_valid = True
+
+    # --fix --output-mode stdout: stdout carries only the corrected alignment
+    # (so it can be piped or redirected); everything else goes to stderr
+    alignment_out = sys.stdout
+    if args.fix and args.output_mode == 'stdout':
+        sys.stdout = sys.stderr
     
     for filepath in args.files:
         path = Path(filepath)
@@ -809,7 +818,8 @@ def main():
             for line in run_info:
                 print(line, file=sys.stderr if args.output_mode == 'stdout' else sys.stdout)
             try:
-                success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
+                success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db,
+                                                           alignment_out=alignment_out)
             except fixable_errors.RunAbortError as e:
                 if tee is not None:
                     sys.stdout = tee.original
