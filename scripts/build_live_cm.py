@@ -34,6 +34,26 @@ def check_cmpress():
         sys.exit(1)
 
 
+# --retry-on-http-error (used for every download) needs wget 1.19.1 or later
+MIN_WGET_VERSION = (1, 19, 1)
+
+
+def check_wget():
+    """Stop with a clear message if wget is missing or too old: older
+    versions reject --retry-on-http-error, and every download would then
+    fail as if the network were down."""
+    if shutil.which("wget") is None:
+        sys.exit("Error: wget not found in PATH. Install wget 1.19.1 or later "
+                 "(e.g. conda install -c conda-forge wget).")
+    result = subprocess.run(["wget", "--version"], capture_output=True, text=True)
+    match = re.search(r'Wget (\d+)\.(\d+)(?:\.(\d+))?', result.stdout)
+    version = tuple(int(part or 0) for part in match.groups()) if match else None
+    if version is None or version < MIN_WGET_VERSION:
+        found = '.'.join(map(str, version)) if version else 'unknown version'
+        sys.exit(f"Error: wget {found} is too old; wget 1.19.1 or later is needed "
+                 f"(e.g. conda install -c conda-forge wget).")
+
+
 def fetch_family_list():
     """Fetch the list of RF##### family IDs from the SVN directory listing."""
     result = subprocess.run(
@@ -178,6 +198,7 @@ def build_live_cm(output_path, delay=0.1, press=True):
     once every family has been downloaded. A failed or interrupted build
     leaves the existing database as it was.
     """
+    check_wget()
     if press:
         check_cmpress()
 

@@ -147,6 +147,7 @@ def _fake_svn(monkeypatch, cm_files, desc_files):
     monkeypatch.setattr(b, "fetch_family_list", lambda: sorted(cm_files))
     monkeypatch.setattr(b, "download_cm", cm_files.get)
     monkeypatch.setattr(b, "download_desc", desc_files.get)
+    monkeypatch.setattr(b, "check_wget", lambda: None)   # downloads are faked
     return b
 
 
@@ -264,3 +265,33 @@ def test_cm_db_without_fix_skips_invalid_files(tmp_path):
     code, output = _run_cli("--cm-db", tmp_path / "db.cm", sto, env={"PATH": ""})
     assert code == 1
     assert "INVALID" in output and "Rfam families" not in output
+
+
+@pytest.mark.parametrize("version_output, ok", [
+    ("GNU Wget 1.25.0 built on linux-gnu.", True),
+    ("GNU Wget 1.19.1 built on linux-gnu.", True),
+    ("GNU Wget 1.21 built on linux-gnu.", True),
+    ("GNU Wget 1.19 built on linux-gnu.", False),
+    ("GNU Wget 1.14 built on linux-gnu.", False),
+    ("something else", False),
+])
+def test_check_wget_version(monkeypatch, version_output, ok):
+    from types import SimpleNamespace
+    from scripts import build_live_cm as b
+    monkeypatch.setattr(b.shutil, "which", lambda name: "/usr/bin/wget")
+    monkeypatch.setattr(b.subprocess, "run",
+                        lambda *args, **kwargs: SimpleNamespace(stdout=version_output, returncode=0))
+    if ok:
+        b.check_wget()
+    else:
+        with pytest.raises(SystemExit) as e:
+            b.check_wget()
+        assert "wget 1.19.1 or later is needed" in str(e.value)
+
+
+def test_check_wget_missing(monkeypatch):
+    from scripts import build_live_cm as b
+    monkeypatch.setattr(b.shutil, "which", lambda name: None)
+    with pytest.raises(SystemExit) as e:
+        b.check_wget()
+    assert "wget not found in PATH" in str(e.value)
