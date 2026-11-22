@@ -299,7 +299,8 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
         if warned:
             print(f"  {len(warned)} sequence(s) match known Rfam families (see warnings above).",
                   file=out)
-        elif verbose:
+        else:
+            # Always: shows the check ran (silence would look the same as no check)
             print("  No sequences significantly match known Rfam families.", file=out)
 
         return hit_details
@@ -690,7 +691,8 @@ def main():
     parser_arg.add_argument(
         '--cm-db',
         default=None,
-        help='Path to Rfam CM database (e.g., Rfam.cm) to filter sequences matching known families'
+        help='Path to a pressed Rfam CM database (e.g., Rfam.cm): warn about sequences that match '
+             'known families (offline; with or without --fix)'
     )
     parser_arg.add_argument(
         '--local',
@@ -772,8 +774,12 @@ def main():
                     filepath = output_path
 
         # Display results
+        # Without --fix, --cm-db is checked here (with --fix, fix_file does it);
+        # show the file's status line so its results have a heading
+        scan_known_families = bool(args.cm_db) and not args.fix and result['is_valid']
+
         if result['is_valid'] and not result['fixable_errors']:
-            if args.verbose or result['warnings']:
+            if args.verbose or result['warnings'] or scan_known_families:
                 print(f"✓ {filepath}: Valid Stockholm file")
 
             # Display warnings
@@ -806,6 +812,12 @@ def main():
                 print(f"  ⚠ Warning: {warning}")
 
             all_valid = False
+
+        if scan_known_families:
+            # Offline (local cmscan only), so it does not need --fix
+            with open(filepath) as f:
+                entries = parser.parse_stockholm_file(f.readlines())['sequence_entries']
+            filter_known_families(entries, args.cm_db, verbose=args.verbose)
 
         # Write report file
         if tee is not None:

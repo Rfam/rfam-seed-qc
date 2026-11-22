@@ -183,16 +183,19 @@ Requests follow RNAcentral's access guidelines: one request every 2 seconds (the
 
 ### Filtering Known Rfam Families (cmscan)
 
-When building a new Rfam family, you can check whether sequences already belong to existing Rfam families using the `--cm-db` option. This requires:
+When building a new Rfam family, you can check whether sequences already belong to existing Rfam families using the `--cm-db` option. The check is offline (local `cmscan` only) and works with or without `--fix`; without `--fix`, results are only printed (no report file), and invalid files are not scanned. This requires:
 
 1. **Download Rfam.cm** from https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/Rfam.cm.gz
 2. **Decompress**: `gunzip Rfam.cm.gz`
 3. **Press the database**: `cmpress Rfam.cm` (generates `.i1f`, `.i1i`, `.i1m`, `.i1p` index files)
 4. **Install Infernal**: `cmscan` must be available in your PATH (http://eddylab.org/infernal/)
 
-cmscan is run with `--cut_ga` to use each model's GA (gathering) threshold, matching how Rfam curates family membership. Hits that pass GA are flagged as warnings but **not removed**. An additional E-value safety filter (`CMSCAN_MAX_EVALUE` in `scripts/config.py`, default 1e-3) is applied on top. Hits are always shown and saved in the report, also without `-v`. If the check cannot run (cmscan missing, or a database cmscan rejects), a warning says so, so a failed check is never mistaken for "no known families". With `--output-mode stdout`, these messages go to stderr so the output stays a clean alignment.
+cmscan is run with `--cut_ga` to use each model's GA (gathering) threshold, matching how Rfam curates family membership. Hits that pass GA are flagged as warnings but **not removed**. An additional E-value safety filter (`CMSCAN_MAX_EVALUE` in `scripts/config.py`, default 1e-3) is applied on top. Hits, or a line saying none matched, are always shown and saved in the report (with `--fix`), also without `-v`. If the check cannot run (cmscan missing, or a database cmscan rejects), a warning says so, so a failed check is never mistaken for "no known families". With `--output-mode stdout`, these messages go to stderr so the output stays a clean alignment.
 
 ```bash
+# Check for known families only (no changes, no network)
+python3 validate_stockholm.py --cm-db Rfam.cm input.sto
+
 # Check for known families during fixing
 python3 validate_stockholm.py -v --fix --cm-db Rfam.cm input.sto
 ```
