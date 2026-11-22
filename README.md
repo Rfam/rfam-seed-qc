@@ -103,7 +103,8 @@ Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path wit
 - Sequences matching known Rfam families (when `--cm-db` is provided) — flagged but not removed
 - Missing 2D structure consensus annotation (`#=GC SS_cons`)
 - `#=GC SS_cons` length mismatch with sequence length
-- `#=GC SS_cons` invalid WUSS notation characters or unbalanced brackets
+- `#=GC SS_cons` invalid WUSS notation characters or unbalanced brackets (pseudoknots may use any letter pair, `Aa` to `Zz`)
+- Base pairs in `#=GC SS_cons` that the sequences do not support (see [Base-pair support](#base-pair-support))
 - Lines exceeding 10,000 character limit
 
 ### Modular Architecture
@@ -114,6 +115,7 @@ The validation logic is split into separate modules in the `scripts/` directory:
 - `stockholm_warnings.py`: Non-critical issues
 - `parser.py`: Stockholm file parsing utilities (supports both single-block and interleaved multi-block format)
 - `alignment_stats.py`: Pairwise identity computation for alignment quality assessment
+- `structure_qc.py`: WUSS parsing of `#=GC SS_cons` and base-pair support checks
 - `config.py`: Configurable parameters (BLAST thresholds, cmscan E-value, NCBI request delay)
 
 ### Sequence Format
@@ -210,6 +212,15 @@ python3 validate_stockholm.py -v --fix --cm-db Rfam_live.cm input.sto
 
 This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/` (publicly readable, no credentials needed) and concatenates them into a single pressed CM database. Each family keeps its CM and the filter HMM that follows it (cmpress and cmscan need both), named as in the released `Rfam.cm`: `NAME` from the `ID` line of the family's `DESC` (e.g. `SNORD19`) and `ACC` set to the family ID (e.g. `RF00569`). SVN CM files have no gathering thresholds, so GA, TC and NC are read from each family's `DESC` file and added to its CM, as in the released `Rfam.cm` (the validator scans with `--cut_ga`). Families whose CM file is incomplete or whose `DESC` has no GA are skipped with a warning. Downloads are retried; if a family still cannot be downloaded, the build stops with an error rather than produce an incomplete database. The database is built in a temporary file, so a failed or interrupted build leaves an existing database at the output path unchanged; a successful one replaces it and its old index files, so rebuilding into the same path works. Requires `wget` and `cmpress` (Infernal) in your PATH.
 
+### Base-pair support
+
+For each base pair in `#=GC SS_cons`, the validator counts how many sequences can form it: Watson-Crick or G-U (T is read as U), not paired, or with a gap at one or both positions. Ambiguous bases such as `N` are ignored. It warns about:
+- **pairs few sequences can form**, which may be a wrong pair in `SS_cons`;
+- **pairs gapped in most sequences**;
+- **sequences that cannot form many of the pairs**, which is often a misaligned or wrong sequence.
+
+These are warnings only: nothing is removed, and the file stays valid. The check is skipped if `SS_cons` is missing, has the wrong length, or is malformed (those problems have their own warnings). Thresholds are in `scripts/config.py` (see [Configuration](#configuration)).
+
 ### Pairwise Identity
 
 When running with `--fix -v`, the script computes and displays the average pairwise identity for each sequence in the final alignment. Sequences with identity significantly below the alignment average (>20 percentage points) are flagged as potential outliers.
@@ -241,6 +252,9 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |
 | `BLAST_NUM_THREADS` | CPUs available | Threads for local `blastn` (`--local` only; `--threads` overrides it) |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
+| `STRUCTURE_MIN_PAIR_SUPPORT` | 0.5 | Warn about an SS_cons base pair formed (Watson-Crick or G-U) by fewer than this fraction of sequences |
+| `STRUCTURE_MAX_PAIR_GAPS` | 0.5 | Warn about an SS_cons base pair with a gap in more than this fraction of sequences |
+| `STRUCTURE_MAX_SEQ_MISPAIRED` | 0.3 | Warn about a sequence that cannot form more than this fraction of the SS_cons base pairs (and at least 2) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
 | `NCBI_TIMEOUT` | 60 | Timeout in seconds for one NCBI FASTA download |
 | `NCBI_TOOL` | `rfam-seed-qc` | Tool name sent to NCBI (BLAST and E-utilities) |

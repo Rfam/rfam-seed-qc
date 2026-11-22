@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Import validation modules
-from scripts import fatal_errors, fixable_errors, stockholm_warnings as warnings, parser, alignment_stats
+from scripts import fatal_errors, fixable_errors, stockholm_warnings as warnings, parser, alignment_stats, structure_qc
 from scripts import config
 from scripts.config import CMSCAN_MAX_EVALUE
 
@@ -135,6 +135,11 @@ def validate_stockholm_file(filepath):
             warning_list.extend(warning_msgs)
         else:
             warning_list.append(warning_msgs)
+
+    # Can the sequences form the SS_cons base pairs? (skipped if SS_cons is
+    # missing or malformed: reported above)
+    warning_list.extend(structure_qc.check_pair_support(
+        parsed['gc_annotations'].get('SS_cons'), sequence_entries))
     
     has_warning, warning_msgs = warnings.check_line_length(lines)
     if has_warning:

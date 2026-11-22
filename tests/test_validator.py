@@ -46,6 +46,10 @@ VALIDATION_CASES = [
     ('valid/valid.sto', 0, 'Valid Stockholm file', []),
     ('valid/missing_ss_cons.sto', 0, 'Valid Stockholm file',
      ['Missing 2D structure consensus annotation (#=GC SS_cons)']),
+    # X00004.1 is shifted: it cannot form 3 of the 4 SS_cons pairs
+    ('valid/unsupported_pairs.sto', 0, 'Valid Stockholm file',
+     ['Base-pair support: 1 sequence(s) cannot form more than 30%',
+      'X00004.1/1-12 (3/4)']),
     ('invalid/empty.sto', 1, 'INVALID', ['File is empty']),
     ('invalid/missing_header.sto', 1, 'INVALID',
      ["Missing required '# STOCKHOLM 1.0' header"]),
