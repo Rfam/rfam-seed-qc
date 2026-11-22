@@ -150,6 +150,32 @@ def parse_sequence_identifier(seq_name):
     return seq_name, None
 
 
+def parse_coordinates(coords):
+    """
+    (start, end) from 'START-END', both whole numbers >= 1 (start > end on
+    the reverse strand), or None if coords is not exactly that.
+    """
+    match = re.fullmatch(r'(\d+)-(\d+)', coords or '')
+    if not match:
+        return None
+    start, end = int(match.group(1)), int(match.group(2))
+    return (start, end) if start >= 1 and end >= 1 else None
+
+
+def _reference_subsequence(ref_seq, start, end):
+    """
+    Upper-case bases start..end of a reference record (1-based, inclusive),
+    reverse-complemented when start > end (a single base, start == end, is
+    read as forward). None if the coordinates run past the end of the record:
+    Python would silently cut the slice short.
+    """
+    if max(start, end) > len(ref_seq):
+        return None
+    if start <= end:
+        return str(ref_seq[start - 1:end]).upper()
+    return str(ref_seq[end - 1:start].reverse_complement()).upper()
+
+
 def find_missing_coordinates(sequence_entries):
     """
     Find sequences that are missing start/stop coordinates.
@@ -1126,12 +1152,13 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
             # No coordinates, can't validate
             continue
 
-        # Parse coordinates
-        match = re.match(r'(\d+)-(\d+)', coords)
-        if not match:
+        # Parse coordinates (malformed ones are a fatal validation error, so
+        # never reach here in a --fix run)
+        parsed_coords = parse_coordinates(coords)
+        if not parsed_coords:
             continue
 
-        start, end = int(match.group(1)), int(match.group(2))
+        start, end = parsed_coords
 
         # Remove gaps from Stockholm sequence (needed for both validation and BLAST)
         stockholm_seq = seq_data.replace('.', '').replace('-', '').upper()
@@ -1157,20 +1184,19 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                 fasta_file = get_fasta_file(accession)
                 fasta = SeqIO.read(fasta_file, "fasta")
 
-                # Extract subsequence from NCBI (handle forward and reverse strand)
-                # Convert to 0-based indexing
-                if start < end:
-                    # Forward strand
-                    ncbi_subseq = str(fasta.seq[start - 1:end]).upper()
-                else:
-                    # Reverse strand
-                    ncbi_subseq = str(fasta.seq[end - 1:start].reverse_complement()).upper()
+                # Extract subsequence from NCBI (forward or reverse strand)
+                ncbi_subseq = _reference_subsequence(fasta.seq, start, end)
 
                 # Convert RNA to DNA for comparison (NCBI stores DNA)
                 stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
 
                 # Compare
-                if stockholm_seq_dna == ncbi_subseq:
+                if ncbi_subseq is None:
+                    failure = 'mismatch'
+                    if verbose:
+                        print(f"  {seq_name}: coordinates run past the end of {accession} "
+                              f"({len(fasta.seq)} bases)")
+                elif stockholm_seq_dna == ncbi_subseq:
                     ncbi_ok = True
                     if verbose:
                         print(f"  {seq_name}: validated OK")
@@ -1214,10 +1240,7 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                     try:
                         blast_fasta_file = get_fasta_file(blast_accession)
                         blast_fasta = SeqIO.read(blast_fasta_file, "fasta")
-                        if blast_start < blast_end:
-                            blast_ncbi_seq = str(blast_fasta.seq[blast_start - 1:blast_end]).upper()
-                        else:
-                            blast_ncbi_seq = str(blast_fasta.seq[blast_end - 1:blast_start].reverse_complement()).upper()
+                        blast_ncbi_seq = _reference_subsequence(blast_fasta.seq, blast_start, blast_end)
                         stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
                         if stockholm_seq_dna == blast_ncbi_seq:
                             if verbose:

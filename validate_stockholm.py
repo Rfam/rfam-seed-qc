@@ -110,6 +110,15 @@ def validate_stockholm_file(filepath):
             f"in the same block (lines {first_line} and {other_line}). Rename or remove "
             f"one of them")
 
+    # Coordinates must be START-END (whole numbers >= 1): anything else would
+    # be skipped by the source check, so the sequence would never be verified
+    for seq_name, _ in sequence_entries:
+        _, coords = fixable_errors.parse_sequence_identifier(seq_name)
+        if coords is not None and not fixable_errors.parse_coordinates(coords):
+            fatal_error_list.append(
+                f"Sequence {seq_name} has malformed coordinates '{coords}' (expected START-END, "
+                f"e.g. 1-74, or 74-1 on the reverse strand)")
+
     # Check sequence length consistency
     is_valid, error_msg = fatal_errors.check_sequence_lengths(unique_sequences)
     if not is_valid:

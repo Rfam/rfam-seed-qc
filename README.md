@@ -94,6 +94,7 @@ Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path wit
 - **All sequences must have the same length**
 - **Sequences must not contain whitespace characters** (including spaces inside the sequence data)
 - **A sequence name used twice in one block with different sequence data** (identical repeats are fixable duplicates)
+- **Malformed coordinates**: anything after `/` must be `START-END`, both whole numbers from 1 (e.g. `1-74`, or `74-1` on the reverse strand)
 
 **Fixable Errors** (can be auto-corrected with `--fix`):
 - Duplicate sequences (same accession, coordinates, and sequence data)

@@ -55,6 +55,11 @@ VALIDATION_CASES = [
      ["Stockholm header has version '2.0' (expected '# STOCKHOLM 1.0')"]),
     ('valid/missing_version.sto', 0, 'Valid Stockholm file',
      ["Stockholm header has no version (expected '# STOCKHOLM 1.0')"]),
+    # Coordinates must be START-END, both >= 1 (else the source check skipped them)
+    ('invalid/malformed_coordinates.sto', 1, 'INVALID',
+     ["Sequence AC123456.1/not-coordinates has malformed coordinates 'not-coordinates'",
+      "Sequence AC999999.1/1-4x has malformed coordinates '1-4x'",
+      "Sequence AC888888.1/0-3 has malformed coordinates '0-3'"]),
     ('invalid/empty.sto', 1, 'INVALID', ['File is empty']),
     ('invalid/missing_header.sto', 1, 'INVALID',
      ["Missing required '# STOCKHOLM 1.0' header"]),

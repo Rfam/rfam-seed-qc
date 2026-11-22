@@ -150,3 +150,31 @@ def test_gs_lines_follow_renamed_sequences(tmp_path, monkeypatch):
         out = tmp_path / 'input_corrected.sto'
         assert subprocess.run(['esl-reformat', 'stockholm', str(out)],
                               capture_output=True).returncode == 0
+
+
+@pytest.mark.parametrize('name, seq, ok', [
+    ('REF.1/1-4', 'ACGU', True),
+    ('REF.1/4-1', 'ACGU', True),      # reverse strand: reverse complement of ACGT is ACGT
+    ('REF.1/1-1', 'A', True),         # a single base is read forward, not complemented
+    ('REF.1/2-3', 'CG', True),
+    ('REF.1/1-999', 'ACGU', False),   # past the end of the 4-base record: not cut short
+    ('REF.1/999-1', 'ACGU', False),
+])
+def test_source_check_coordinates(tmp_path, monkeypatch, name, seq, ok):
+    fasta = tmp_path / 'ref.fasta'
+    fasta.write_text('>REF.1 test\nACGT\n')
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', lambda identifier, **kwargs: str(fasta))
+    invalid, _, mismatched, _ = fixable_errors.validate_sequences_against_ncbi(
+        [(name, seq)], use_blast_fallback=False)
+    assert (name not in invalid) == ok
+    if not ok:
+        assert name in mismatched
+
+
+@pytest.mark.parametrize('coords, expected', [
+    ('1-74', (1, 74)), ('74-1', (74, 1)), ('5-5', (5, 5)),
+    ('not-coordinates', None), ('1-4x', None), ('0-3', None), ('3-0', None),
+    ('-1-4', None), ('1-', None), ('', None), (None, None),
+])
+def test_parse_coordinates(coords, expected):
+    assert fixable_errors.parse_coordinates(coords) == expected
