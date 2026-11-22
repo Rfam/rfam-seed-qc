@@ -53,7 +53,7 @@ Options:
 
 #### NCBI rate limits
 
-NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, rejects the API key, or cannot be reached at all (no network, DNS or firewall problems), the run stops with an error rather than removing sequences it could not check. The same applies when RNAcentral cannot be reached. To avoid this:
+NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, rejects the API key, or cannot be reached at all (no network, DNS or firewall problems), the run stops with an error rather than removing sequences it could not check. The same applies when web BLAST returns a reply that is not usable BLAST results (an HTML error page, an empty or cut-off reply, or an error message from NCBI): it is retried like a refused request, and the run stops only if all attempts fail. Other HTTP errors (such as 403 from a proxy) stop the run straight away, since retrying would not help. A real "no hit" is not affected. The same applies when RNAcentral cannot be reached. To avoid this:
 
 - Use `--local` (see below), which reads sequences from a local database; or
 - Set an NCBI API key (free, from your [NCBI account settings](https://www.ncbi.nlm.nih.gov/account/settings/)). The limit then applies to your key (10 requests per second) instead of the shared IP. The key is read from the environment and never written to reports:
@@ -266,7 +266,7 @@ Parameters can be adjusted in `scripts/config.py`:
 | `NCBI_EMAIL` | `None` | Your email, sent to NCBI so they can contact you before blocking heavy use (recommended) |
 | `NCBI_API_KEY` | from the `NCBI_API_KEY` environment variable | Optional NCBI API key (see [NCBI rate limits](#ncbi-rate-limits)). Never put it in `config.py` |
 | `NCBI_REQUEST_DELAY_WITH_KEY` | 0.1 | Delay between NCBI requests in seconds when an API key is set |
-| `NCBI_BLAST_RETRY_WAIT` | 30 | Seconds before retrying a web BLAST request NCBI refused (×attempt) |
+| `NCBI_BLAST_RETRY_WAIT` | 30 | Seconds before retrying a web BLAST request NCBI refused or answered with an unusable reply (×attempt) |
 | `RNACENTRAL_REQUEST_DELAY` | 2.0 | Delay between RNAcentral requests in seconds |
 | `RNACENTRAL_MAX_RETRIES` | 3 | Retries on HTTP 429/5xx/network errors |
 | `RNACENTRAL_TIMEOUT` | 30 | RNAcentral request timeout in seconds |

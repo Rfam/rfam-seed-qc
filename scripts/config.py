@@ -107,7 +107,9 @@ NCBI_API_KEY = os.environ.get('NCBI_API_KEY', '').strip() or None
 NCBI_REQUEST_DELAY_WITH_KEY = 0.1
 
 # Seconds to wait before retrying a web BLAST request that NCBI refused
-# (429/5xx); multiplied by the attempt number (30 s, then 60 s).
+# (429/5xx) or answered with an unusable reply (HTML error page, empty or
+# cut-off reply, NCBI error message); multiplied by the attempt number
+# (30 s, then 60 s).
 NCBI_BLAST_RETRY_WAIT = 30
 
 
