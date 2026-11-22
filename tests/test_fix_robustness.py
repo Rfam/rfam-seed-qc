@@ -203,3 +203,26 @@ def test_output_mode_stdout_is_a_clean_alignment(tmp_path, monkeypatch, capsys, 
         piped.write_text(out)
         assert subprocess.run(['esl-reformat', 'stockholm', str(piped)],
                               capture_output=True).returncode == 0
+
+
+def test_rescued_row_survives_an_invalid_row_with_its_new_name(tmp_path, monkeypatch):
+    """X is named N.1/1-18 but has the wrong sequence (removed); Y has N's
+    sequence under a wrong name and BLAST renames it to N.1/1-18. Y must be
+    kept, with its own #=GS line, not X's."""
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'fix_missing_coordinates',
+                        lambda *args, **kwargs: ({}, set()))
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: ({'N.1/1-18'}, set(), {'N.1/1-18'},
+                                                {'WRONG.1/1-18': 'N.1/1-18'}))
+    sto = tmp_path / 'input.sto'
+    sto.write_text('# STOCKHOLM 1.0\n#=GS N.1/1-18 DE row X (wrong sequence)\n'
+                   '#=GS WRONG.1/1-18 DE row Y (rescued)\n\n'
+                   f'N.1/1-18     {"G" * 18}\nWRONG.1/1-18 {SEQ}\nOTHER.1/1-18 {SEQ}\n//\n')
+    success, _, output_path = validate_stockholm.fix_file(str(sto))
+    assert success
+    lines = Path(output_path).read_text().splitlines()
+    rows = {line.split()[0]: line.split()[1] for line in lines if line and not line.startswith(('#', '//'))}
+    assert rows == {'N.1/1-18': SEQ, 'OTHER.1/1-18': SEQ}       # Y kept under its new name
+    assert [' '.join(line.split()) for line in lines if line.startswith('#=GS')] == [
+        '#=GS N.1/1-18 DE row Y (rescued)']

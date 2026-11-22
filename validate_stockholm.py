@@ -473,6 +473,22 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None, alignment_
         print(f"  Warning: taxid could not be verified in RNAcentral for {len(unverified)} sequence(s) "
               f"(sequence matched; kept): {', '.join(unverified)}")
 
+    # Remove invalid rows before applying BLAST renames, while names still
+    # identify rows: a row BLAST rescues to the name of an invalid row must
+    # not be removed with it
+    invalid_originals = set()
+    if invalid_seqs:
+        if not_found_seqs:
+            print(f"  {len(not_found_seqs)} sequence(s) not found in NCBI/RNAcentral (invalid accession?)")
+        if mismatched_seqs:
+            print(f"  {len(mismatched_seqs)} sequence(s) don't match NCBI/RNAcentral data")
+        processed_sequences = [(name, seq) for name, seq in processed_sequences if name not in invalid_seqs]
+        num_removed += len(invalid_seqs)
+        # Their original rows, so their annotations are not given to a rescued
+        # row that BLAST renames to the same name
+        invalid_originals = {orig for orig, _ in sequence_entries
+                             if id_mapping.get(orig, orig) in invalid_seqs}
+
     # Apply BLAST fixes: update sequence names with BLAST-found accession/coords
     if blast_fixed:
         if verbose:
@@ -487,14 +503,6 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None, alignment_
             mapped = id_mapping.get(orig_name, orig_name)
             if mapped in blast_fixed:
                 id_mapping[orig_name] = blast_fixed[mapped]
-
-    if invalid_seqs:
-        if not_found_seqs:
-            print(f"  {len(not_found_seqs)} sequence(s) not found in NCBI/RNAcentral (invalid accession?)")
-        if mismatched_seqs:
-            print(f"  {len(mismatched_seqs)} sequence(s) don't match NCBI/RNAcentral data")
-        processed_sequences = [(name, seq) for name, seq in processed_sequences if name not in invalid_seqs]
-        num_removed += len(invalid_seqs)
 
     # BLAST renames come after the duplicate and overlap checks above, so a
     # rescued row can now share its name with, or overlap, another kept row.
@@ -526,7 +534,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None, alignment_
     kept_original_names = set()
     names_taken = set()
     for seq_name, _ in sequence_entries:
-        if seq_name in to_remove:
+        if seq_name in to_remove or seq_name in invalid_originals:
             continue
         mapped = id_mapping.get(seq_name, seq_name)
         if mapped in kept_seq_names and mapped not in names_taken:
