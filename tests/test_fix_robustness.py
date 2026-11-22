@@ -226,3 +226,13 @@ def test_rescued_row_survives_an_invalid_row_with_its_new_name(tmp_path, monkeyp
     assert rows == {'N.1/1-18': SEQ, 'OTHER.1/1-18': SEQ}       # Y kept under its new name
     assert [' '.join(line.split()) for line in lines if line.startswith('#=GS')] == [
         '#=GS N.1/1-18 DE row Y (rescued)']
+
+
+def test_direct_row_wins_overlap_even_if_a_rescue_shares_its_name(tmp_path, monkeypatch):
+    """ACC.1/10-27 matches its record under its own name. One rescue lands on
+    the same name, another overlaps it (ACC.1/5-22). The direct row must win:
+    whether a row was rescued is a property of the row, not of its name."""
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nACC.1/10-27  {SEQ}\nBAD1.1/1-18  {SEQ}\nBAD2.1/1-18  {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22', 'BAD2.1/1-18': 'ACC.1/10-27'})
+    assert rows == ['ACC.1/10-27']

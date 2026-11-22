@@ -493,6 +493,9 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None, alignment_
     if blast_fixed:
         if verbose:
             print(f"  {len(blast_fixed)} sequence(s) rescued via BLAST")
+        # Names of rows checked directly under their own name, recorded per
+        # row before renaming: a rescue can end up with the same name
+        direct_names = {name for name, _ in processed_sequences if name not in blast_fixed}
         processed_sequences = [
             (blast_fixed[name], seq) if name in blast_fixed else (name, seq)
             for name, seq in processed_sequences
@@ -515,9 +518,8 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None, alignment_
             if name not in names:
                 names.add(name)
                 final.append((name, seq))
-        rescued = set(blast_fixed.values())
         overlapping = fixable_errors.find_overlapping_sequences(
-            final, preferred={name for name, _ in final if name not in rescued})
+            final, preferred={name for name, _ in final if name in direct_names})
         final = [(name, seq) for name, seq in final if name not in overlapping]
         dropped = len(processed_sequences) - len(final)
         if dropped:
