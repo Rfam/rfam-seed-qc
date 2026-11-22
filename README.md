@@ -40,7 +40,7 @@ python3 validate_stockholm.py [-v] [--version] [--fix] [--output-mode {stdout,fi
 
 Options:
 - `-v, --verbose`: Print detailed validation information
-- `--version`: Show the version (e.g. `rfam-seed-qc 1.3.1`) and exit
+- `--version`: Show the version (e.g. `rfam-seed-qc 1.3.2`) and exit
 - `--fix`: Attempt to fix fixable errors automatically
 - `--output-mode {stdout,file}`: Output mode for fixed files (default: file)
   - `file`: Create a new file with `_corrected` suffix, plus a `_Report.txt` log of the run (starting with the tool version)
