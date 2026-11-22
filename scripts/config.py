@@ -66,6 +66,23 @@ CMSCAN_MAX_EVALUE = 1e-3
 
 
 # =============================================================================
+# Base-pair support (SS_cons checks; warnings only, nothing is removed)
+# =============================================================================
+
+# Warn about a base pair if fewer than this fraction of the sequences with
+# both bases can form it (Watson-Crick or G-U)
+STRUCTURE_MIN_PAIR_SUPPORT = 0.5
+
+# Warn about a base pair if more than this fraction of sequences have a gap
+# at one or both of its positions
+STRUCTURE_MAX_PAIR_GAPS = 0.5
+
+# Warn about a sequence if it cannot form more than this fraction of the
+# base pairs it has both bases for (often a misaligned sequence)
+STRUCTURE_MAX_SEQ_MISPAIRED = 0.3
+
+
+# =============================================================================
 # NCBI Request Parameters
 # =============================================================================
 
@@ -90,7 +107,9 @@ NCBI_API_KEY = os.environ.get('NCBI_API_KEY', '').strip() or None
 NCBI_REQUEST_DELAY_WITH_KEY = 0.1
 
 # Seconds to wait before retrying a web BLAST request that NCBI refused
-# (429/5xx); multiplied by the attempt number (30 s, then 60 s).
+# (429/5xx) or answered with an unusable reply (HTML error page, empty or
+# cut-off reply, NCBI error message); multiplied by the attempt number
+# (30 s, then 60 s).
 NCBI_BLAST_RETRY_WAIT = 30
 
 

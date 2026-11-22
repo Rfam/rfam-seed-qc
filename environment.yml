@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python>=3.8
+  - python>=3.10
   - biopython
   - infernal
   - easel          # esl-reformat etc.; not included in bioconda's infernal

@@ -150,6 +150,32 @@ def parse_sequence_identifier(seq_name):
     return seq_name, None
 
 
+def parse_coordinates(coords):
+    """
+    (start, end) from 'START-END', both whole numbers >= 1 (start > end on
+    the reverse strand), or None if coords is not exactly that.
+    """
+    match = re.fullmatch(r'(\d+)-(\d+)', coords or '')
+    if not match:
+        return None
+    start, end = int(match.group(1)), int(match.group(2))
+    return (start, end) if start >= 1 and end >= 1 else None
+
+
+def _reference_subsequence(ref_seq, start, end):
+    """
+    Upper-case bases start..end of a reference record (1-based, inclusive),
+    reverse-complemented when start > end (a single base, start == end, is
+    read as forward). None if the coordinates run past the end of the record:
+    Python would silently cut the slice short.
+    """
+    if max(start, end) > len(ref_seq):
+        return None
+    if start <= end:
+        return str(ref_seq[start - 1:end]).upper()
+    return str(ref_seq[end - 1:start].reverse_complement()).upper()
+
+
 def find_missing_coordinates(sequence_entries):
     """
     Find sequences that are missing start/stop coordinates.
@@ -466,6 +492,90 @@ def _hit_accession(alignment):
     return None
 
 
+def _web_blast_reply(dna_seq, max_evalue, verbose=False):
+    """
+    Run one web BLAST search at NCBI and return its reply, checked to be
+    BLAST XML whose first record parses.
+
+    Retried (3 attempts, with a long backoff): rate limits and server errors
+    (429, 5xx), network errors, and replies that are not usable BLAST results
+    (an HTML error page, an empty or cut-off reply, an error message from
+    NCBI such as a CPU limit). These are usually temporary. Not retried:
+    other HTTP errors (e.g. 403 from a proxy, 400), which will not change.
+
+    Raises:
+        NCBIUnavailableError when no usable reply is obtained. Never returns
+        an unusable reply: that would be read as "no hit" and the sequence
+        removed.
+    """
+    import urllib.error
+    from xml.parsers.expat import ExpatError
+    from Bio.Blast import NCBIWWW, NCBIXML
+
+    # Identify ourselves to NCBI (sent with every qblast request)
+    NCBIWWW.tool = config.NCBI_TOOL
+    NCBIWWW.email = config.NCBI_EMAIL
+
+    for attempt in range(1, 4):
+        try:
+            # Standard blastn (not megablast) against nt, with the task's
+            # scoring parameters set explicitly rather than relying on NCBI's
+            # defaults. MEGABLAST is deliberately not sent. Note: NCBI's server
+            # currently searches core_nt when asked for nt.
+            handle = NCBIWWW.qblast(
+                "blastn", "nt", dna_seq,
+                word_size=config.BLAST_WORD_SIZE,
+                nucl_reward=config.BLAST_MATCH_REWARD,
+                nucl_penalty=config.BLAST_MISMATCH_PENALTY,
+                gapcosts=config.BLAST_GAP_COSTS,
+                hitlist_size=config.BLAST_HITLIST_SIZE,
+                expect=max_evalue,
+                format_type="XML"
+            )
+            try:
+                reply = handle.read()
+            finally:
+                handle.close()
+            if isinstance(reply, bytes):
+                reply = reply.decode('utf-8', errors='replace')
+            if '<BlastOutput' not in reply[:5000]:
+                # An HTML page or plain text, which the XML parser would
+                # report with a confusing message: name it here
+                start = ' '.join(reply.split())[:80]
+                problem = f"unusable reply: not BLAST XML; starts with {start!r}"
+            else:
+                # Cut-off or broken XML fails here. Close the parser ourselves:
+                # left to garbage collection it raises where no one can catch it
+                records = NCBIXML.parse(io.StringIO(reply))
+                try:
+                    next(records)
+                finally:
+                    try:
+                        records.close()
+                    except Exception:
+                        pass
+                return reply
+        except Exception as e:
+            if isinstance(e, urllib.error.HTTPError) and not _ncbi_refused(e):
+                # 403, 400, ...: retrying will not help
+                raise NCBIUnavailableError(
+                    f"NCBI BLAST returned an unusable reply ({e}). Try again later, "
+                    f"or use --local") from e
+            if _ncbi_refused(e) or _is_network_error(e):
+                problem = f"request failed: {e}"
+            elif isinstance(e, (ValueError, ExpatError, StopIteration)):
+                problem = f"unusable reply: {type(e).__name__}: {e}"
+            else:
+                raise
+        if attempt == 3:
+            raise NCBIUnavailableError(
+                f"NCBI BLAST failed 3 times (last: {problem}). Try again later, "
+                f"or use --local")
+        if verbose:
+            print(f"    NCBI BLAST {problem}; retrying...")
+        time.sleep(config.NCBI_BLAST_RETRY_WAIT * attempt)
+
+
 def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, max_evalue=None,
                  exact_only=False, prefer_accession=None, prefer_start=None):
     """
@@ -494,7 +604,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
     Returns:
         tuple: (accession_with_coords, is_accurate) or (None, False) if no good hit
     """
-    from Bio.Blast import NCBIWWW, NCBIXML
+    from Bio.Blast import NCBIXML
     from Bio.Seq import Seq
 
     # Use config defaults if not specified
@@ -537,39 +647,7 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
                 raise LocalBlastError(f"local blastn failed: {proc.stderr.strip()}")
             result_handle = io.StringIO(proc.stdout)
         else:
-            # Identify ourselves to NCBI (sent with every qblast request)
-            NCBIWWW.tool = config.NCBI_TOOL
-            NCBIWWW.email = config.NCBI_EMAIL
-
-            # Standard blastn (not megablast) against nt, with the task's scoring
-            # parameters set explicitly rather than relying on NCBI's defaults.
-            # MEGABLAST is deliberately not sent. Limit results for speed.
-            # Note: NCBI's server currently searches core_nt when asked for nt.
-            # NCBI may throttle (429) or be overloaded (5xx): retry with a
-            # long backoff, then stop the run rather than report "no hit".
-            for attempt in range(1, 4):
-                try:
-                    result_handle = NCBIWWW.qblast(
-                        "blastn", "nt", dna_seq,
-                        word_size=config.BLAST_WORD_SIZE,
-                        nucl_reward=config.BLAST_MATCH_REWARD,
-                        nucl_penalty=config.BLAST_MISMATCH_PENALTY,
-                        gapcosts=config.BLAST_GAP_COSTS,
-                        hitlist_size=config.BLAST_HITLIST_SIZE,
-                        expect=max_evalue,
-                        format_type="XML"
-                    )
-                    break
-                except Exception as e:
-                    if not (_ncbi_refused(e) or _is_network_error(e)):
-                        raise
-                    if attempt == 3:
-                        raise NCBIUnavailableError(
-                            f"NCBI BLAST kept refusing or failing requests ({e}) after 3 attempts. "
-                            f"Try again later, or use --local") from e
-                    if verbose:
-                        print(f"    NCBI BLAST request failed ({e}), retrying...")
-                    time.sleep(config.NCBI_BLAST_RETRY_WAIT * attempt)
+            result_handle = io.StringIO(_web_blast_reply(dna_seq, max_evalue, verbose))
         blast_records = NCBIXML.parse(result_handle)
         blast_record = next(blast_records)
 
@@ -660,9 +738,13 @@ def blast_search(sequence, verbose=False, min_identity=None, min_coverage=None, 
             raise NCBIUnavailableError(
                 f"Could not reach NCBI BLAST ({e}). Check the network connection and "
                 f"try again, or use --local") from e
-        if verbose:
-            print(f"    BLAST search failed: {e}")
-        return None, False
+        # As locally: a real "no hit" is valid XML with no hits and never gets
+        # here. Anything else (an HTML error page, an empty or cut-off reply,
+        # an error message from NCBI, HTTP 4xx such as 403 from a proxy) says
+        # nothing about the sequence, so stop rather than remove it.
+        raise NCBIUnavailableError(
+            f"NCBI BLAST returned an unusable reply ({type(e).__name__}: {e}). "
+            f"Try again later, or use --local") from e
 
     finally:
         # NCBIXML.parse is a generator and we return as soon as the first record
@@ -1070,12 +1152,13 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
             # No coordinates, can't validate
             continue
 
-        # Parse coordinates
-        match = re.match(r'(\d+)-(\d+)', coords)
-        if not match:
+        # Parse coordinates (malformed ones are a fatal validation error, so
+        # never reach here in a --fix run)
+        parsed_coords = parse_coordinates(coords)
+        if not parsed_coords:
             continue
 
-        start, end = int(match.group(1)), int(match.group(2))
+        start, end = parsed_coords
 
         # Remove gaps from Stockholm sequence (needed for both validation and BLAST)
         stockholm_seq = seq_data.replace('.', '').replace('-', '').upper()
@@ -1101,20 +1184,19 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                 fasta_file = get_fasta_file(accession)
                 fasta = SeqIO.read(fasta_file, "fasta")
 
-                # Extract subsequence from NCBI (handle forward and reverse strand)
-                # Convert to 0-based indexing
-                if start < end:
-                    # Forward strand
-                    ncbi_subseq = str(fasta.seq[start - 1:end]).upper()
-                else:
-                    # Reverse strand
-                    ncbi_subseq = str(fasta.seq[end - 1:start].reverse_complement()).upper()
+                # Extract subsequence from NCBI (forward or reverse strand)
+                ncbi_subseq = _reference_subsequence(fasta.seq, start, end)
 
                 # Convert RNA to DNA for comparison (NCBI stores DNA)
                 stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
 
                 # Compare
-                if stockholm_seq_dna == ncbi_subseq:
+                if ncbi_subseq is None:
+                    failure = 'mismatch'
+                    if verbose:
+                        print(f"  {seq_name}: coordinates run past the end of {accession} "
+                              f"({len(fasta.seq)} bases)")
+                elif stockholm_seq_dna == ncbi_subseq:
                     ncbi_ok = True
                     if verbose:
                         print(f"  {seq_name}: validated OK")
@@ -1158,10 +1240,7 @@ def validate_sequences_against_ncbi(sequence_entries, verbose=False, use_blast_f
                     try:
                         blast_fasta_file = get_fasta_file(blast_accession)
                         blast_fasta = SeqIO.read(blast_fasta_file, "fasta")
-                        if blast_start < blast_end:
-                            blast_ncbi_seq = str(blast_fasta.seq[blast_start - 1:blast_end]).upper()
-                        else:
-                            blast_ncbi_seq = str(blast_fasta.seq[blast_end - 1:blast_start].reverse_complement()).upper()
+                        blast_ncbi_seq = _reference_subsequence(blast_fasta.seq, blast_start, blast_end)
                         stockholm_seq_dna = str(Seq(stockholm_seq).back_transcribe())
                         if stockholm_seq_dna == blast_ncbi_seq:
                             if verbose:

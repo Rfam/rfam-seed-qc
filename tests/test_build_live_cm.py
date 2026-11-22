@@ -147,6 +147,7 @@ def _fake_svn(monkeypatch, cm_files, desc_files):
     monkeypatch.setattr(b, "fetch_family_list", lambda: sorted(cm_files))
     monkeypatch.setattr(b, "download_cm", cm_files.get)
     monkeypatch.setattr(b, "download_desc", desc_files.get)
+    monkeypatch.setattr(b, "check_wget", lambda: None)   # downloads are faked
     return b
 
 
@@ -216,3 +217,81 @@ def test_hits_are_shown_without_verbose(tmp_path, capsys, to_stderr):
     assert "q/1-76: matches RF00005 (tRNA)" in shown
     assert "1 sequence(s) match known Rfam families" in shown
     assert other == ""
+
+
+# --cm-db without --fix: the scan is offline, so it runs on plain validation
+# too (it used to be accepted and silently ignored).
+
+def _run_cli(*args, env=None):
+    result = subprocess.run([sys.executable, str(REPO / "validate_stockholm.py"), *map(str, args)],
+                            capture_output=True, text=True, env=env, timeout=120)
+    return result.returncode, result.stdout + result.stderr
+
+
+def _trna_alignment(tmp_path):
+    sto = tmp_path / "trna.sto"
+    sto.write_text(f"# STOCKHOLM 1.0\n\nX01.1/1-{len(TRNA)}   {TRNA}\n"
+                   f"X02.1/1-{len(TRNA)}   {TRNA}\n//\n")
+    return sto
+
+
+@pytest.mark.skipif(not (shutil.which("cmpress") and shutil.which("cmscan")),
+                    reason="Infernal not installed")
+def test_cm_db_without_fix_reports_hits(tmp_path):
+    cm = tmp_path / "live.cm"
+    cm.write_text(extract_first_model(SVN_CM, "RF00005", parse_thresholds(DESC), "tRNA"))
+    subprocess.run(["cmpress", str(cm)], check=True, capture_output=True)
+    sto = _trna_alignment(tmp_path)
+    code, output = _run_cli("--cm-db", cm, sto)
+    assert code == 0, output
+    assert "Valid Stockholm file" in output
+    assert f"X01.1/1-{len(TRNA)}: matches RF00005 (tRNA)" in output
+    assert "2 sequence(s) match known Rfam families" in output
+    # validation only: nothing is written next to the input
+    assert sorted(p.name for p in tmp_path.iterdir() if p.suffix != ".cm" and ".cm." not in p.name) == [
+        "trna.sto"]
+
+
+def test_cm_db_without_fix_warns_if_cmscan_missing(tmp_path):
+    sto = _trna_alignment(tmp_path)
+    code, output = _run_cli("--cm-db", tmp_path / "db.cm", sto, env={"PATH": ""})
+    assert code == 0, output
+    assert "cmscan not found; known Rfam families were NOT checked" in output
+
+
+def test_cm_db_without_fix_skips_invalid_files(tmp_path):
+    sto = tmp_path / "bad.sto"
+    sto.write_text("# STOCKHOLM 1.0\n\nX01.1/1-4 ACGU\nX02.1/1-3 ACG\n//\n")
+    code, output = _run_cli("--cm-db", tmp_path / "db.cm", sto, env={"PATH": ""})
+    assert code == 1
+    assert "INVALID" in output and "Rfam families" not in output
+
+
+@pytest.mark.parametrize("version_output, ok", [
+    ("GNU Wget 1.25.0 built on linux-gnu.", True),
+    ("GNU Wget 1.19.1 built on linux-gnu.", True),
+    ("GNU Wget 1.21 built on linux-gnu.", True),
+    ("GNU Wget 1.19 built on linux-gnu.", False),
+    ("GNU Wget 1.14 built on linux-gnu.", False),
+    ("something else", False),
+])
+def test_check_wget_version(monkeypatch, version_output, ok):
+    from types import SimpleNamespace
+    from scripts import build_live_cm as b
+    monkeypatch.setattr(b.shutil, "which", lambda name: "/usr/bin/wget")
+    monkeypatch.setattr(b.subprocess, "run",
+                        lambda *args, **kwargs: SimpleNamespace(stdout=version_output, returncode=0))
+    if ok:
+        b.check_wget()
+    else:
+        with pytest.raises(SystemExit) as e:
+            b.check_wget()
+        assert "wget 1.19.1 or later is needed" in str(e.value)
+
+
+def test_check_wget_missing(monkeypatch):
+    from scripts import build_live_cm as b
+    monkeypatch.setattr(b.shutil, "which", lambda name: None)
+    with pytest.raises(SystemExit) as e:
+        b.check_wget()
+    assert "wget not found in PATH" in str(e.value)

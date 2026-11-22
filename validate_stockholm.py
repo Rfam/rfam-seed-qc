@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Import validation modules
-from scripts import fatal_errors, fixable_errors, stockholm_warnings as warnings, parser, alignment_stats
+from scripts import fatal_errors, fixable_errors, stockholm_warnings as warnings, parser, alignment_stats, structure_qc
 from scripts import config
 from scripts.config import CMSCAN_MAX_EVALUE
 
@@ -102,6 +102,23 @@ def validate_stockholm_file(filepath):
     if not is_valid:
         fatal_error_list.append(error_msg)
     
+    # Same name twice in one block with different data: only the first row
+    # would be kept, and the tool cannot tell which one is right
+    for seq_name, first_line, other_line in parsed['conflicting_rows']:
+        fatal_error_list.append(
+            f"Sequence name {seq_name} is used for rows with different sequence data "
+            f"in the same block (lines {first_line} and {other_line}). Rename or remove "
+            f"one of them")
+
+    # Coordinates must be START-END (whole numbers >= 1): anything else would
+    # be skipped by the source check, so the sequence would never be verified
+    for seq_name, _ in sequence_entries:
+        _, coords = fixable_errors.parse_sequence_identifier(seq_name)
+        if coords is not None and not fixable_errors.parse_coordinates(coords):
+            fatal_error_list.append(
+                f"Sequence {seq_name} has malformed coordinates '{coords}' (expected START-END, "
+                f"e.g. 1-74, or 74-1 on the reverse strand)")
+
     # Check sequence length consistency
     is_valid, error_msg = fatal_errors.check_sequence_lengths(unique_sequences)
     if not is_valid:
@@ -135,7 +152,16 @@ def validate_stockholm_file(filepath):
             warning_list.extend(warning_msgs)
         else:
             warning_list.append(warning_msgs)
+
+    # Can the sequences form the SS_cons base pairs? (skipped if SS_cons is
+    # missing or malformed: reported above)
+    warning_list.extend(structure_qc.check_pair_support(
+        parsed['gc_annotations'].get('SS_cons'), sequence_entries))
     
+    version_warning = warnings.check_header_version(lines)
+    if version_warning:
+        warning_list.insert(0, version_warning)
+
     has_warning, warning_msgs = warnings.check_line_length(lines)
     if has_warning:
         warning_list.extend(warning_msgs)
@@ -282,7 +308,8 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
         if warned:
             print(f"  {len(warned)} sequence(s) match known Rfam families (see warnings above).",
                   file=out)
-        elif verbose:
+        else:
+            # Always: shows the check ran (silence would look the same as no check)
             print("  No sequences significantly match known Rfam families.", file=out)
 
         return hit_details
@@ -296,7 +323,7 @@ def filter_known_families(sequence_entries, cm_db, verbose=False, evalue_thresho
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
+def fix_file(filepath, output_mode='file', verbose=False, cm_db=None, alignment_out=None):
     """
     Fix fixable errors in a Stockholm file.
 
@@ -305,6 +332,8 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         output_mode: 'stdout' to print to stdout, 'file' to create _corrected file
         verbose: Print progress messages
         cm_db: Path to Rfam CM database for filtering known families (None: no check)
+        alignment_out: Stream for the corrected alignment in 'stdout' mode
+            (default sys.stdout)
 
     Returns:
         tuple: (success, num_fixes_applied, output_path)
@@ -364,8 +393,10 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # Apply coordinate fixes, remove bad sequences, and remove duplicates
     processed_sequences = []  # List of (new_name, seq_content)
     seen_sequences = {}
+    used_names = set()
     num_duplicates = num_parser_dupes
     num_removed = 0
+    num_collisions = 0
 
     for seq_name, seq_content in sequence_entries:
         # Skip sequences marked for removal
@@ -380,12 +411,25 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         accession, coords = fixable_errors.parse_sequence_identifier(new_name)
         key = (accession, coords, seq_content)
 
-        if key not in seen_sequences:
-            seen_sequences[key] = True
-            processed_sequences.append((new_name, seq_content))
-        else:
+        if key in seen_sequences:
             num_duplicates += 1
+        elif new_name in used_names:
+            # Coordinate repair gave two rows the same name (same record and
+            # coordinates, different gaps). Keep the first: overlap removal
+            # works by name and would otherwise drop both.
+            num_collisions += 1
+            if verbose:
+                print(f"  {seq_name}: same name as another row after adding coordinates "
+                      f"({new_name}); kept the first")
+        else:
+            seen_sequences[key] = True
+            used_names.add(new_name)
+            processed_sequences.append((new_name, seq_content))
 
+    if num_collisions:
+        print(f"  Removed {num_collisions} row(s) that got the same name as another row "
+              f"when coordinates were added")
+    num_duplicates += num_collisions
     num_fixes += num_duplicates
 
     # Check for overlapping sequences and remove them. When copies of an
@@ -429,10 +473,29 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         print(f"  Warning: taxid could not be verified in RNAcentral for {len(unverified)} sequence(s) "
               f"(sequence matched; kept): {', '.join(unverified)}")
 
+    # Remove invalid rows before applying BLAST renames, while names still
+    # identify rows: a row BLAST rescues to the name of an invalid row must
+    # not be removed with it
+    invalid_originals = set()
+    if invalid_seqs:
+        if not_found_seqs:
+            print(f"  {len(not_found_seqs)} sequence(s) not found in NCBI/RNAcentral (invalid accession?)")
+        if mismatched_seqs:
+            print(f"  {len(mismatched_seqs)} sequence(s) don't match NCBI/RNAcentral data")
+        processed_sequences = [(name, seq) for name, seq in processed_sequences if name not in invalid_seqs]
+        num_removed += len(invalid_seqs)
+        # Their original rows, so their annotations are not given to a rescued
+        # row that BLAST renames to the same name
+        invalid_originals = {orig for orig, _ in sequence_entries
+                             if id_mapping.get(orig, orig) in invalid_seqs}
+
     # Apply BLAST fixes: update sequence names with BLAST-found accession/coords
     if blast_fixed:
         if verbose:
             print(f"  {len(blast_fixed)} sequence(s) rescued via BLAST")
+        # Names of rows checked directly under their own name, recorded per
+        # row before renaming: a rescue can end up with the same name
+        direct_names = {name for name, _ in processed_sequences if name not in blast_fixed}
         processed_sequences = [
             (blast_fixed[name], seq) if name in blast_fixed else (name, seq)
             for name, seq in processed_sequences
@@ -444,22 +507,41 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
             if mapped in blast_fixed:
                 id_mapping[orig_name] = blast_fixed[mapped]
 
-    if invalid_seqs:
-        if not_found_seqs:
-            print(f"  {len(not_found_seqs)} sequence(s) not found in NCBI/RNAcentral (invalid accession?)")
-        if mismatched_seqs:
-            print(f"  {len(mismatched_seqs)} sequence(s) don't match NCBI/RNAcentral data")
-        processed_sequences = [(name, seq) for name, seq in processed_sequences if name not in invalid_seqs]
-        num_removed += len(invalid_seqs)
+    # BLAST renames come after the duplicate and overlap checks above, so a
+    # rescued row can now share its name with, or overlap, another kept row.
+    # Every row left matches its source, so keep: the first of rows with the
+    # same name; among overlapping rows, one that kept its own name (checked
+    # directly against its record) before a BLAST rescue, then the lower start.
+    if blast_fixed:
+        final, names = [], set()
+        for name, seq in processed_sequences:
+            if name not in names:
+                names.add(name)
+                final.append((name, seq))
+        overlapping = fixable_errors.find_overlapping_sequences(
+            final, preferred={name for name, _ in final if name in direct_names})
+        final = [(name, seq) for name, seq in final if name not in overlapping]
+        dropped = len(processed_sequences) - len(final)
+        if dropped:
+            print(f"  Removed {dropped} row(s) that BLAST placed at the same location as, or "
+                  f"overlapping, another row")
+            num_removed += dropped
+        processed_sequences = final
 
     # Build set of kept sequence names (final names after all mappings)
     kept_seq_names = {name for name, _ in processed_sequences}
-    # Also track which original names were kept (for GR/GS lookup)
+    # Also track which original names were kept (for GR/GS lookup). When
+    # several original rows end up with one name, only the first is kept, so
+    # only its annotations are: otherwise #=GR lines would be written twice.
     kept_original_names = set()
+    names_taken = set()
     for seq_name, _ in sequence_entries:
+        if seq_name in to_remove or seq_name in invalid_originals:
+            continue
         mapped = id_mapping.get(seq_name, seq_name)
-        if mapped in kept_seq_names:
+        if mapped in kept_seq_names and mapped not in names_taken:
             kept_original_names.add(seq_name)
+            names_taken.add(mapped)
 
     # Compute column width: max of sequence names, #=GR tags, and #=GC tags
     name_width = 30
@@ -477,8 +559,10 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
     # Build final corrected lines in proper Stockholm order
     corrected_lines = []
 
-    # 1. Header (# STOCKHOLM 1.0)
-    corrected_lines.extend(header_lines)
+    # 1. Header, always written as '# STOCKHOLM 1.0' (a missing or other
+    # version only gave a warning, but Easel/Infernal reject it)
+    corrected_lines.extend('# STOCKHOLM 1.0\n' if line.strip().startswith('# STOCKHOLM') else line
+                           for line in header_lines)
 
     # 2. File-level annotations (#=GF) - keep at top, then record which tool
     #    and version produced this file (replacing the note from any earlier run)
@@ -497,7 +581,9 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         if orig_seq_id is None:
             corrected_lines.append(ann_line)
         elif orig_seq_id in kept_original_names:
-            corrected_lines.append(ann_line)
+            # Use the sequence's final name (coordinates added or BLAST rename)
+            _, _, rest = ann_line.split(None, 2)
+            corrected_lines.append(f"#=GS {id_mapping.get(orig_seq_id, orig_seq_id)} {rest}")
 
     # 4. Sequences with their #=GR annotations
     for new_name, seq_content in processed_sequences:
@@ -505,7 +591,7 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
         # Output #=GR annotations for this sequence
         for (gr_seq, gr_feat), gr_data in gr_annotations.items():
             mapped_name = id_mapping.get(gr_seq, gr_seq)
-            if mapped_name == new_name:
+            if mapped_name == new_name and gr_seq in kept_original_names:
                 tag = f"#=GR {new_name} {gr_feat}"
                 corrected_lines.append(f"{tag:<{name_width}} {gr_data}\n")
 
@@ -570,8 +656,9 @@ def fix_file(filepath, output_mode='file', verbose=False, cm_db=None):
             print("  Warning: esl-reformat not found in PATH, skipping gap minimization")
 
     if output_mode == 'stdout':
-        for line in corrected_lines:
-            print(line, end='')
+        out = alignment_out or sys.stdout
+        out.writelines(corrected_lines)
+        out.flush()
         return True, num_fixes, None
     else:
         path = Path(filepath)
@@ -671,7 +758,8 @@ def main():
     parser_arg.add_argument(
         '--cm-db',
         default=None,
-        help='Path to Rfam CM database (e.g., Rfam.cm) to filter sequences matching known families'
+        help='Path to a pressed Rfam CM database (e.g., Rfam.cm): warn about sequences that match '
+             'known families (offline; with or without --fix)'
     )
     parser_arg.add_argument(
         '--local',
@@ -709,6 +797,12 @@ def main():
         run_info.append("  NCBI API key: used (from NCBI_API_KEY)")  # never print the key
 
     all_valid = True
+
+    # --fix --output-mode stdout: stdout carries only the corrected alignment
+    # (so it can be piped or redirected); everything else goes to stderr
+    alignment_out = sys.stdout
+    if args.fix and args.output_mode == 'stdout':
+        sys.stdout = sys.stderr
     
     for filepath in args.files:
         path = Path(filepath)
@@ -734,7 +828,8 @@ def main():
             for line in run_info:
                 print(line, file=sys.stderr if args.output_mode == 'stdout' else sys.stdout)
             try:
-                success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db)
+                success, num_fixes, output_path = fix_file(filepath, args.output_mode, verbose=args.verbose, cm_db=args.cm_db,
+                                                           alignment_out=alignment_out)
             except fixable_errors.RunAbortError as e:
                 if tee is not None:
                     sys.stdout = tee.original
@@ -753,8 +848,12 @@ def main():
                     filepath = output_path
 
         # Display results
+        # Without --fix, --cm-db is checked here (with --fix, fix_file does it);
+        # show the file's status line so its results have a heading
+        scan_known_families = bool(args.cm_db) and not args.fix and result['is_valid']
+
         if result['is_valid'] and not result['fixable_errors']:
-            if args.verbose or result['warnings']:
+            if args.verbose or result['warnings'] or scan_known_families:
                 print(f"✓ {filepath}: Valid Stockholm file")
 
             # Display warnings
@@ -787,6 +886,12 @@ def main():
                 print(f"  ⚠ Warning: {warning}")
 
             all_valid = False
+
+        if scan_known_families:
+            # Offline (local cmscan only), so it does not need --fix
+            with open(filepath) as f:
+                entries = parser.parse_stockholm_file(f.readlines())['sequence_entries']
+            filter_known_families(entries, args.cm_db, verbose=args.verbose)
 
         # Write report file
         if tee is not None:

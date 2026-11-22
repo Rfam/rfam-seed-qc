@@ -4,6 +4,8 @@ Warning validators for Stockholm files.
 These are non-critical issues that don't prevent validation.
 """
 
+from scripts import structure_qc
+
 
 def check_ss_cons_from_parsed(gc_annotations, sequence_entries):
     """
@@ -91,22 +93,10 @@ def check_ss_cons(lines):
     return False, None
 
 
-# Valid WUSS (Washington University Secondary Structure) characters
-# Paired: () <> [] {} Aa Bb Cc Dd
-# Unpaired: . , : _ - ~
-WUSS_VALID_CHARS = set('.<>()[]{}AaBbCcDd,:_-~')
-
-# Bracket pairs for balancing checks
-WUSS_BRACKET_PAIRS = {
-    '(': ')', '<': '>', '[': ']', '{': '}',
-    'A': 'a', 'B': 'b', 'C': 'c', 'D': 'd',
-}
-WUSS_CLOSE_TO_OPEN = {v: k for k, v in WUSS_BRACKET_PAIRS.items()}
-
-
 def validate_ss_cons_format(ss_cons_data):
     """
     Validate that #=GC SS_cons uses valid WUSS notation and has balanced brackets.
+    Pseudoknots may use any letter pair (Aa ... Zz), as in Easel.
 
     Args:
         ss_cons_data: The SS_cons annotation string
@@ -114,47 +104,49 @@ def validate_ss_cons_format(ss_cons_data):
     Returns:
         list: Warning messages (empty if valid)
     """
+    parsed = structure_qc.parse_wuss(ss_cons_data)
     warnings = []
 
-    # Check for invalid characters
-    invalid_chars = {}
-    for i, ch in enumerate(ss_cons_data):
-        if ch not in WUSS_VALID_CHARS:
-            if ch not in invalid_chars:
-                invalid_chars[ch] = i + 1  # 1-based position
-
-    if invalid_chars:
+    if parsed['invalid']:
         chars_str = ', '.join(
-            f"'{ch}' (position {pos})" for ch, pos in invalid_chars.items()
+            f"'{ch}' (position {pos})" for ch, pos in parsed['invalid'].items()
         )
         warnings.append(f"#=GC SS_cons contains invalid characters: {chars_str}")
 
-    # Check bracket balancing
-    stacks = {}  # one stack per opening bracket type
-    for opener in WUSS_BRACKET_PAIRS:
-        stacks[opener] = []
+    for ch, pos in parsed['unmatched_close']:
+        warnings.append(f"#=GC SS_cons has unmatched '{ch}' at position {pos}")
 
-    for i, ch in enumerate(ss_cons_data):
-        if ch in WUSS_BRACKET_PAIRS:
-            stacks[ch].append(i + 1)
-        elif ch in WUSS_CLOSE_TO_OPEN:
-            opener = WUSS_CLOSE_TO_OPEN[ch]
-            if stacks[opener]:
-                stacks[opener].pop()
-            else:
-                warnings.append(
-                    f"#=GC SS_cons has unmatched '{ch}' at position {i + 1}"
-                )
-
-    for opener, stack in stacks.items():
-        if stack:
-            closer = WUSS_BRACKET_PAIRS[opener]
-            warnings.append(
-                f"#=GC SS_cons has {len(stack)} unmatched '{opener}' "
-                f"(missing '{closer}')"
-            )
+    for opener, count in parsed['unmatched_open'].items():
+        closer = structure_qc.WUSS_OPEN_TO_CLOSE[opener]
+        warnings.append(
+            f"#=GC SS_cons has {count} unmatched '{opener}' (missing '{closer}')"
+        )
 
     return warnings
+
+
+def check_header_version(lines):
+    """
+    Warn if the Stockholm header has no version or a version other than 1.0
+    (the only one there is). Easel (Infernal) rejects such files, so --fix
+    writes the header as '# STOCKHOLM 1.0'.
+
+    Returns:
+        str warning, or None
+    """
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('# STOCKHOLM'):
+            parts = stripped.split()
+            if len(parts) < 3:
+                problem = "has no version"
+            elif parts[2] != '1.0':
+                problem = f"has version '{parts[2]}'"
+            else:
+                return None
+            return (f"Stockholm header {problem} (expected '# STOCKHOLM 1.0'); "
+                    f"--fix writes '# STOCKHOLM 1.0'")
+    return None
 
 
 def check_line_length(lines, max_length=10000):

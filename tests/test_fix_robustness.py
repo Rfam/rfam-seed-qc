@@ -3,6 +3,8 @@ Offline tests: --fix must not crash on files the validator accepts, and must
 stop (not remove sequences) when a sequence source cannot be reached.
 """
 
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -54,3 +56,183 @@ def test_rnacentral_outage_stops_coordinate_fixing(tmp_path, monkeypatch):
     sto.write_text(f'# STOCKHOLM 1.0\n\nURS0000572555_562 {SEQ}\n//\n')
     with pytest.raises(fixable_errors.RNAcentralUnavailableError):
         fixable_errors.fix_missing_coordinates(str(sto))
+
+
+@pytest.mark.parametrize('header', ['# STOCKHOLM', '# STOCKHOLM 2.0', '# STOCKHOLM 1.0'])
+def test_fix_writes_stockholm_1_0_header(tmp_path, monkeypatch, header):
+    """A missing or other version is only a warning; --fix still runs and
+    writes a header Infernal accepts."""
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: (set(), set(), set(), {}))
+    sto = tmp_path / 'input.sto'
+    sto.write_text(f'{header}\n#=GF ID   test\n\n'
+                   f'X01.1/1-18   {SEQ}\nX02.1/1-18   {SEQ}\n'
+                   '#=GC SS_cons <<<..............>>>\n//\n')
+    assert validate_stockholm.validate_stockholm_file(str(sto))['is_valid']
+    success, _, output_path = validate_stockholm.fix_file(str(sto))
+    assert success
+    lines = Path(output_path).read_text().splitlines()
+    assert lines[0] == '# STOCKHOLM 1.0'
+    assert sum(line.startswith('# STOCKHOLM') for line in lines) == 1
+    assert '#=GF ID   test' in lines
+
+
+# Repairs can give rows the same name, or overlapping coordinates, after the
+# duplicate and overlap checks: keep exactly one, never both or neither.
+
+def _fix(tmp_path, monkeypatch, text, mapping, blast_fixed):
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'fix_missing_coordinates',
+                        lambda *args, **kwargs: (dict(mapping), set()))
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: (set(), set(), set(), dict(blast_fixed)))
+    sto = tmp_path / 'input.sto'
+    sto.write_text(text)
+    success, _, output_path = validate_stockholm.fix_file(str(sto))
+    assert success
+    lines = Path(output_path).read_text().splitlines()
+    rows = [line.split()[0] for line in lines if line and not line.startswith(('#', '//'))]
+    return rows, lines
+
+
+def test_rows_given_the_same_name_by_coordinate_repair_keep_one(tmp_path, monkeypatch, capsys):
+    # same record and coordinates, different gaps: overlap removal used to drop both
+    rows, lines = _fix(tmp_path, monkeypatch,
+                       '# STOCKHOLM 1.0\n\n'
+                       f'ACC.1        {SEQ}--\n#=GR ACC.1 PP {"9" * 20}\n'
+                       f'ACC.1_copy   -{SEQ}-\n#=GR ACC.1_copy PP {"8" * 20}\n'
+                       f'OTHER.1/1-18 {SEQ}--\n//\n',
+                       {'ACC.1': 'ACC.1/5-22', 'ACC.1_copy': 'ACC.1/5-22'}, {})
+    assert rows == ['ACC.1/5-22', 'OTHER.1/1-18']
+    gr = [line for line in lines if line.startswith('#=GR')]
+    # the kept row's annotation only (all-gap columns are trimmed, so 18 left)
+    assert len(gr) == 1 and gr[0].endswith('9' * 18) and '8' not in gr[0]
+    assert 'same name as another row when coordinates were added' in capsys.readouterr().out
+
+
+def test_blast_rescues_with_the_same_name_keep_one(tmp_path, monkeypatch, capsys):
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nBAD1.1/1-18  {SEQ}\nBAD2.1/1-18  {SEQ}\nOTHER.1/1-18 {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22', 'BAD2.1/1-18': 'ACC.1/5-22'})
+    assert rows == ['ACC.1/5-22', 'OTHER.1/1-18']
+    assert 'BLAST placed at the same location as, or overlapping, another row' in capsys.readouterr().out
+
+
+def test_blast_rescue_overlapping_a_kept_row_is_removed(tmp_path, monkeypatch):
+    # the row checked under its own name wins over the BLAST rescue, even with a higher start
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nACC.1/10-27  {SEQ}\nBAD1.1/1-18  {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22'})
+    assert rows == ['ACC.1/10-27']
+
+
+def test_blast_rescues_that_do_not_collide_are_all_kept(tmp_path, monkeypatch):
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nBAD1.1/1-18  {SEQ}\nBAD2.1/1-18  {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22', 'BAD2.1/1-18': 'ACC.1/105-122'})
+    assert rows == ['ACC.1/5-22', 'ACC.1/105-122']
+
+
+def test_gs_lines_follow_renamed_sequences(tmp_path, monkeypatch):
+    """#=GS lines must use the final name (esl-reformat rejects the old one)."""
+    rows, lines = _fix(tmp_path, monkeypatch,
+                       '# STOCKHOLM 1.0\n\n#=GS ACC.1 DE coordinates added\n'
+                       '#=GS BAD1.1/1-18 DE renamed by BLAST\n#=GS OTHER.1/1-18 DE unchanged\n\n'
+                       f'ACC.1        {SEQ}\nBAD1.1/1-18  {SEQ}\nOTHER.1/1-18 {SEQ}\n//\n',
+                       {'ACC.1': 'ACC.1/5-22'}, {'BAD1.1/1-18': 'NEW.1/5-22'})
+    assert rows == ['ACC.1/5-22', 'NEW.1/5-22', 'OTHER.1/1-18']
+    assert [' '.join(line.split()) for line in lines if line.startswith('#=GS')] == [
+        '#=GS ACC.1/5-22 DE coordinates added',
+        '#=GS NEW.1/5-22 DE renamed by BLAST',
+        '#=GS OTHER.1/1-18 DE unchanged']
+    if shutil.which('esl-reformat'):
+        out = tmp_path / 'input_corrected.sto'
+        assert subprocess.run(['esl-reformat', 'stockholm', str(out)],
+                              capture_output=True).returncode == 0
+
+
+@pytest.mark.parametrize('name, seq, ok', [
+    ('REF.1/1-4', 'ACGU', True),
+    ('REF.1/4-1', 'ACGU', True),      # reverse strand: reverse complement of ACGT is ACGT
+    ('REF.1/1-1', 'A', True),         # a single base is read forward, not complemented
+    ('REF.1/2-3', 'CG', True),
+    ('REF.1/1-999', 'ACGU', False),   # past the end of the 4-base record: not cut short
+    ('REF.1/999-1', 'ACGU', False),
+])
+def test_source_check_coordinates(tmp_path, monkeypatch, name, seq, ok):
+    fasta = tmp_path / 'ref.fasta'
+    fasta.write_text('>REF.1 test\nACGT\n')
+    monkeypatch.setattr(fixable_errors, 'get_fasta_file', lambda identifier, **kwargs: str(fasta))
+    invalid, _, mismatched, _ = fixable_errors.validate_sequences_against_ncbi(
+        [(name, seq)], use_blast_fallback=False)
+    assert (name not in invalid) == ok
+    if not ok:
+        assert name in mismatched
+
+
+@pytest.mark.parametrize('coords, expected', [
+    ('1-74', (1, 74)), ('74-1', (74, 1)), ('5-5', (5, 5)),
+    ('not-coordinates', None), ('1-4x', None), ('0-3', None), ('3-0', None),
+    ('-1-4', None), ('1-', None), ('', None), (None, None),
+])
+def test_parse_coordinates(coords, expected):
+    assert fixable_errors.parse_coordinates(coords) == expected
+
+
+@pytest.mark.parametrize('verbose', [[], ['-v']])
+def test_output_mode_stdout_is_a_clean_alignment(tmp_path, monkeypatch, capsys, verbose):
+    """--fix --output-mode stdout: stdout holds only the corrected alignment
+    (it can be piped); status lines and warnings go to stderr."""
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: (set(), set(), set(), {}))
+    monkeypatch.setattr(sys, 'stdout', sys.stdout)   # restored after main() redirects it
+    sto = tmp_path / 'input.sto'
+    sto.write_text(f'# STOCKHOLM 1.0\n\nX01.1/1-18   {SEQ}\nX02.1/1-18   {SEQ}\n'
+                   '#=GC SS_cons <<<............>>>\n//\n')    # 18 columns, as the sequences
+    monkeypatch.setattr(sys, 'argv', ['rfam-seed-qc', *verbose, '--fix', '--output-mode', 'stdout', str(sto)])
+    assert validate_stockholm.main() == 0
+    out, err = capsys.readouterr()
+    assert out.startswith('# STOCKHOLM 1.0\n') and out.endswith('//\n')
+    assert out.splitlines().count('//') == 1 and 'passed validation' not in out
+    assert 'All 1 file(s) passed validation' in err
+    assert not list(tmp_path.glob('*_corrected*')) and not list(tmp_path.glob('*_Report*'))
+    if shutil.which('esl-reformat'):
+        piped = tmp_path / 'piped.sto'
+        piped.write_text(out)
+        assert subprocess.run(['esl-reformat', 'stockholm', str(piped)],
+                              capture_output=True).returncode == 0
+
+
+def test_rescued_row_survives_an_invalid_row_with_its_new_name(tmp_path, monkeypatch):
+    """X is named N.1/1-18 but has the wrong sequence (removed); Y has N's
+    sequence under a wrong name and BLAST renames it to N.1/1-18. Y must be
+    kept, with its own #=GS line, not X's."""
+    import validate_stockholm
+    monkeypatch.setattr(fixable_errors, 'fix_missing_coordinates',
+                        lambda *args, **kwargs: ({}, set()))
+    monkeypatch.setattr(fixable_errors, 'validate_sequences_against_ncbi',
+                        lambda seqs, **kwargs: ({'N.1/1-18'}, set(), {'N.1/1-18'},
+                                                {'WRONG.1/1-18': 'N.1/1-18'}))
+    sto = tmp_path / 'input.sto'
+    sto.write_text('# STOCKHOLM 1.0\n#=GS N.1/1-18 DE row X (wrong sequence)\n'
+                   '#=GS WRONG.1/1-18 DE row Y (rescued)\n\n'
+                   f'N.1/1-18     {"G" * 18}\nWRONG.1/1-18 {SEQ}\nOTHER.1/1-18 {SEQ}\n//\n')
+    success, _, output_path = validate_stockholm.fix_file(str(sto))
+    assert success
+    lines = Path(output_path).read_text().splitlines()
+    rows = {line.split()[0]: line.split()[1] for line in lines if line and not line.startswith(('#', '//'))}
+    assert rows == {'N.1/1-18': SEQ, 'OTHER.1/1-18': SEQ}       # Y kept under its new name
+    assert [' '.join(line.split()) for line in lines if line.startswith('#=GS')] == [
+        '#=GS N.1/1-18 DE row Y (rescued)']
+
+
+def test_direct_row_wins_overlap_even_if_a_rescue_shares_its_name(tmp_path, monkeypatch):
+    """ACC.1/10-27 matches its record under its own name. One rescue lands on
+    the same name, another overlaps it (ACC.1/5-22). The direct row must win:
+    whether a row was rescued is a property of the row, not of its name."""
+    rows, _ = _fix(tmp_path, monkeypatch,
+                   f'# STOCKHOLM 1.0\n\nACC.1/10-27  {SEQ}\nBAD1.1/1-18  {SEQ}\nBAD2.1/1-18  {SEQ}\n//\n',
+                   {}, {'BAD1.1/1-18': 'ACC.1/5-22', 'BAD2.1/1-18': 'ACC.1/10-27'})
+    assert rows == ['ACC.1/10-27']

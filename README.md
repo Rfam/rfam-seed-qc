@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/Rfam/rfam-seed-qc)](https://github.com/Rfam/rfam-seed-qc/releases)
 [![Bioconda](https://img.shields.io/conda/vn/bioconda/rfam-seed-qc?label=bioconda)](https://bioconda.github.io/recipes/rfam-seed-qc/README.html)
 [![License](https://img.shields.io/github/license/Rfam/rfam-seed-qc)](LICENSE)
-![Python](https://img.shields.io/badge/python-%3E%3D3.8-blue)
+![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue)
 
 Tools for ensuring the quality of multiple sequence alignments (MSAs) in Rfam.
 
@@ -40,11 +40,11 @@ python3 validate_stockholm.py [-v] [--version] [--fix] [--output-mode {stdout,fi
 
 Options:
 - `-v, --verbose`: Print detailed validation information
-- `--version`: Show the version (e.g. `rfam-seed-qc 1.3.1`) and exit
+- `--version`: Show the version (e.g. `rfam-seed-qc 1.3.2`) and exit
 - `--fix`: Attempt to fix fixable errors automatically
 - `--output-mode {stdout,file}`: Output mode for fixed files (default: file)
   - `file`: Create a new file with `_corrected` suffix, plus a `_Report.txt` log of the run (starting with the tool version)
-  - `stdout`: Print corrected content to stdout
+  - `stdout`: Print corrected content to stdout. Only the alignment goes to stdout, so it can be piped or redirected (`> fixed.sto`); status lines, warnings and `-v` messages go to stderr. No report file is written.
   - The corrected alignment records the tool and version that produced it in a `#=GF CC   Processed by rfam-seed-qc vX.Y.Z (...)` line
 - `--cm-db <path>`: Path to Rfam CM database for filtering sequences matching known Rfam families (optional)
 - `--local`: Run BLAST and sequence lookups locally with BLAST+ (`blastn`, `blastdbcmd`) instead of NCBI's web services. Needs BLAST+ (included in the conda environment) and a local database; see [Local BLAST](#local-blast)
@@ -53,7 +53,7 @@ Options:
 
 #### NCBI rate limits
 
-NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, rejects the API key, or cannot be reached at all (no network, DNS or firewall problems), the run stops with an error rather than removing sequences it could not check. The same applies when RNAcentral cannot be reached. To avoid this:
+NCBI allows 3 requests per second per IP address. On clusters, many users share one IP, so NCBI may refuse requests (HTTP 429) even for small runs. If NCBI keeps refusing after the retries, rejects the API key, or cannot be reached at all (no network, DNS or firewall problems), the run stops with an error rather than removing sequences it could not check. The same applies when web BLAST returns a reply that is not usable BLAST results (an HTML error page, an empty or cut-off reply, or an error message from NCBI): it is retried like a refused request, and the run stops only if all attempts fail. Other HTTP errors (such as 403 from a proxy) stop the run straight away, since retrying would not help. A real "no hit" is not affected. The same applies when RNAcentral cannot be reached. To avoid this:
 
 - Use `--local` (see below), which reads sequences from a local database; or
 - Set an NCBI API key (free, from your [NCBI account settings](https://www.ncbi.nlm.nih.gov/account/settings/)). The limit then applies to your key (10 requests per second) instead of the shared IP. The key is read from the environment and never written to reports:
@@ -92,7 +92,9 @@ Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path wit
 - Missing `//` terminator
 - No sequences found in alignment
 - **All sequences must have the same length**
-- **Sequences must not contain whitespace characters**
+- **Sequences must not contain whitespace characters** (including spaces inside the sequence data)
+- **A sequence name used twice in one block with different sequence data** (identical repeats are fixable duplicates)
+- **Malformed coordinates**: anything after `/` must be `START-END`, both whole numbers from 1 (e.g. `1-74`, or `74-1` on the reverse strand)
 
 **Fixable Errors** (can be auto-corrected with `--fix`):
 - Duplicate sequences (same accession, coordinates, and sequence data)
@@ -101,9 +103,11 @@ Then run with `--local` (it finds `nt` through `$BLASTDB`), or pass the path wit
 
 **Warnings** (non-critical):
 - Sequences matching known Rfam families (when `--cm-db` is provided) — flagged but not removed
+- Stockholm header without a version, or with a version other than 1.0 (`--fix` writes `# STOCKHOLM 1.0`, which Infernal requires)
 - Missing 2D structure consensus annotation (`#=GC SS_cons`)
 - `#=GC SS_cons` length mismatch with sequence length
-- `#=GC SS_cons` invalid WUSS notation characters or unbalanced brackets
+- `#=GC SS_cons` invalid WUSS notation characters or unbalanced brackets (pseudoknots may use any letter pair, `Aa` to `Zz`)
+- Base pairs in `#=GC SS_cons` that the sequences do not support (see [Base-pair support](#base-pair-support))
 - Lines exceeding 10,000 character limit
 
 ### Modular Architecture
@@ -114,6 +118,7 @@ The validation logic is split into separate modules in the `scripts/` directory:
 - `stockholm_warnings.py`: Non-critical issues
 - `parser.py`: Stockholm file parsing utilities (supports both single-block and interleaved multi-block format)
 - `alignment_stats.py`: Pairwise identity computation for alignment quality assessment
+- `structure_qc.py`: WUSS parsing of `#=GC SS_cons` and base-pair support checks
 - `config.py`: Configurable parameters (BLAST thresholds, cmscan E-value, NCBI request delay)
 
 ### Sequence Format
@@ -154,7 +159,7 @@ With `--local`, the lookup and the BLAST search use the local database instead (
 
 ### Overlap Detection and Removal
 
-Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, the overlapping copies are first checked against NCBI (or the local database, or RNAcentral), without BLAST, and copies that match are kept before those that don't. Then overlapping sequences are removed, keeping the lower start coordinate among equally good copies. This keeps the correct copy when a shifted, wrong copy of the same region is also in the alignment.
+Sequences from the same accession (species) that overlap by at least 1 bp are detected. When using `--fix`, the overlapping copies are first checked against NCBI (or the local database, or RNAcentral), without BLAST, and copies that match are kept before those that don't. Then overlapping sequences are removed, keeping the lower start coordinate among equally good copies. This keeps the correct copy when a shifted, wrong copy of the same region is also in the alignment. Repairs can also give two rows the same name or overlapping coordinates (coordinates added to two differently gapped copies of one sequence, or two rows placed at the same location by BLAST); then exactly one row is kept: the first, and a row checked under its own name before one renamed by BLAST.
 
 ### Sequence Validation
 
@@ -179,16 +184,19 @@ Requests follow RNAcentral's access guidelines: one request every 2 seconds (the
 
 ### Filtering Known Rfam Families (cmscan)
 
-When building a new Rfam family, you can check whether sequences already belong to existing Rfam families using the `--cm-db` option. This requires:
+When building a new Rfam family, you can check whether sequences already belong to existing Rfam families using the `--cm-db` option. The check is offline (local `cmscan` only) and works with or without `--fix`; without `--fix`, results are only printed (no report file), and invalid files are not scanned. This requires:
 
 1. **Download Rfam.cm** from https://ftp.ebi.ac.uk/pub/databases/Rfam/CURRENT/Rfam.cm.gz
 2. **Decompress**: `gunzip Rfam.cm.gz`
 3. **Press the database**: `cmpress Rfam.cm` (generates `.i1f`, `.i1i`, `.i1m`, `.i1p` index files)
 4. **Install Infernal**: `cmscan` must be available in your PATH (http://eddylab.org/infernal/)
 
-cmscan is run with `--cut_ga` to use each model's GA (gathering) threshold, matching how Rfam curates family membership. Hits that pass GA are flagged as warnings but **not removed**. An additional E-value safety filter (`CMSCAN_MAX_EVALUE` in `scripts/config.py`, default 1e-3) is applied on top. Hits are always shown and saved in the report, also without `-v`. If the check cannot run (cmscan missing, or a database cmscan rejects), a warning says so, so a failed check is never mistaken for "no known families". With `--output-mode stdout`, these messages go to stderr so the output stays a clean alignment.
+cmscan is run with `--cut_ga` to use each model's GA (gathering) threshold, matching how Rfam curates family membership. Hits that pass GA are flagged as warnings but **not removed**. An additional E-value safety filter (`CMSCAN_MAX_EVALUE` in `scripts/config.py`, default 1e-3) is applied on top. Hits, or a line saying none matched, are always shown and saved in the report (with `--fix`), also without `-v`. If the check cannot run (cmscan missing, or a database cmscan rejects), a warning says so, so a failed check is never mistaken for "no known families". With `--output-mode stdout`, these messages go to stderr so the output stays a clean alignment.
 
 ```bash
+# Check for known families only (no changes, no network)
+python3 validate_stockholm.py --cm-db Rfam.cm input.sto
+
 # Check for known families during fixing
 python3 validate_stockholm.py -v --fix --cm-db Rfam.cm input.sto
 ```
@@ -208,7 +216,16 @@ python3 scripts/build_live_cm.py --output /path/to/Rfam_live.cm
 python3 validate_stockholm.py -v --fix --cm-db Rfam_live.cm input.sto
 ```
 
-This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/` (publicly readable, no credentials needed) and concatenates them into a single pressed CM database. Each family keeps its CM and the filter HMM that follows it (cmpress and cmscan need both), named as in the released `Rfam.cm`: `NAME` from the `ID` line of the family's `DESC` (e.g. `SNORD19`) and `ACC` set to the family ID (e.g. `RF00569`). SVN CM files have no gathering thresholds, so GA, TC and NC are read from each family's `DESC` file and added to its CM, as in the released `Rfam.cm` (the validator scans with `--cut_ga`). Families whose CM file is incomplete or whose `DESC` has no GA are skipped with a warning. Downloads are retried; if a family still cannot be downloaded, the build stops with an error rather than produce an incomplete database. The database is built in a temporary file, so a failed or interrupted build leaves an existing database at the output path unchanged; a successful one replaces it and its old index files, so rebuilding into the same path works. Requires `wget` and `cmpress` (Infernal) in your PATH.
+This fetches CM files from `https://svn.rfam.org/svn/data_repos/trunk/Families/` (publicly readable, no credentials needed) and concatenates them into a single pressed CM database. Each family keeps its CM and the filter HMM that follows it (cmpress and cmscan need both), named as in the released `Rfam.cm`: `NAME` from the `ID` line of the family's `DESC` (e.g. `SNORD19`) and `ACC` set to the family ID (e.g. `RF00569`). SVN CM files have no gathering thresholds, so GA, TC and NC are read from each family's `DESC` file and added to its CM, as in the released `Rfam.cm` (the validator scans with `--cut_ga`). Families whose CM file is incomplete or whose `DESC` has no GA are skipped with a warning. Downloads are retried; if a family still cannot be downloaded, the build stops with an error rather than produce an incomplete database. The database is built in a temporary file, so a failed or interrupted build leaves an existing database at the output path unchanged; a successful one replaces it and its old index files, so rebuilding into the same path works. Requires `wget` 1.19.1 or later (older versions are rejected with a clear error) and `cmpress` (Infernal) in your PATH.
+
+### Base-pair support
+
+For each base pair in `#=GC SS_cons`, the validator counts how many sequences can form it: Watson-Crick or G-U (T is read as U), not paired, or with a gap at one or both positions. Ambiguous bases such as `N` are ignored. It warns about:
+- **pairs few sequences can form**, which may be a wrong pair in `SS_cons`;
+- **pairs gapped in most sequences**;
+- **sequences that cannot form many of the pairs**, which is often a misaligned or wrong sequence.
+
+These are warnings only: nothing is removed, and the file stays valid. The check is skipped if `SS_cons` is missing, has the wrong length, or is malformed (those problems have their own warnings). Thresholds are in `scripts/config.py` (see [Configuration](#configuration)).
 
 ### Pairwise Identity
 
@@ -241,13 +258,16 @@ Parameters can be adjusted in `scripts/config.py`:
 | `BLAST_GAP_COSTS` | `"5 2"` | blastn gap open/extend costs |
 | `BLAST_NUM_THREADS` | CPUs available | Threads for local `blastn` (`--local` only; `--threads` overrides it) |
 | `CMSCAN_MAX_EVALUE` | 1e-3 | Maximum e-value for cmscan hits (known family warnings) |
+| `STRUCTURE_MIN_PAIR_SUPPORT` | 0.5 | Warn about an SS_cons base pair formed (Watson-Crick or G-U) by fewer than this fraction of sequences |
+| `STRUCTURE_MAX_PAIR_GAPS` | 0.5 | Warn about an SS_cons base pair with a gap in more than this fraction of sequences |
+| `STRUCTURE_MAX_SEQ_MISPAIRED` | 0.3 | Warn about a sequence that cannot form more than this fraction of the SS_cons base pairs (and at least 2) |
 | `NCBI_REQUEST_DELAY` | 0.5 | Delay between NCBI requests in seconds |
 | `NCBI_TIMEOUT` | 60 | Timeout in seconds for one NCBI FASTA download |
 | `NCBI_TOOL` | `rfam-seed-qc` | Tool name sent to NCBI (BLAST and E-utilities) |
 | `NCBI_EMAIL` | `None` | Your email, sent to NCBI so they can contact you before blocking heavy use (recommended) |
 | `NCBI_API_KEY` | from the `NCBI_API_KEY` environment variable | Optional NCBI API key (see [NCBI rate limits](#ncbi-rate-limits)). Never put it in `config.py` |
 | `NCBI_REQUEST_DELAY_WITH_KEY` | 0.1 | Delay between NCBI requests in seconds when an API key is set |
-| `NCBI_BLAST_RETRY_WAIT` | 30 | Seconds before retrying a web BLAST request NCBI refused (×attempt) |
+| `NCBI_BLAST_RETRY_WAIT` | 30 | Seconds before retrying a web BLAST request NCBI refused or answered with an unusable reply (×attempt) |
 | `RNACENTRAL_REQUEST_DELAY` | 2.0 | Delay between RNAcentral requests in seconds |
 | `RNACENTRAL_MAX_RETRIES` | 3 | Retries on HTTP 429/5xx/network errors |
 | `RNACENTRAL_TIMEOUT` | 30 | RNAcentral request timeout in seconds |

@@ -23,6 +23,9 @@ def parse_stockholm_file(lines):
         dict: Parsed file structure with merged sequences, annotations, etc.
             - sequence_entries: list of (seq_name, full_seq_data) tuples (merged)
             - raw_sequence_entries: list of (seq_name, seq_data, block_index) for dedup
+            - conflicting_rows: list of (seq_name, first_line, other_line): a name
+              repeated within one block with different sequence data (1-based
+              line numbers). Only the first row is kept in sequence_entries.
             - gr_annotations: OrderedDict {(seq_name, feature): full_data}
             - gc_annotations: OrderedDict {feature: full_data}
             - gf_lines: list of raw #=GF lines
@@ -42,6 +45,7 @@ def parse_stockholm_file(lines):
 
     # Raw per-line entries for duplicate detection
     raw_sequence_entries = []        # [(seq_name, seq_data, block_index), ...]
+    conflicting_rows = []            # [(seq_name, first_line, other_line), ...]
 
     # Other line collections
     gf_lines = []
@@ -50,11 +54,11 @@ def parse_stockholm_file(lines):
 
     block_index = 0
     seen_data_in_block = False       # Have we seen seq/GR/GC in this block?
-    seen_in_current_block = set()    # Seq names seen in the current block
+    seen_in_current_block = {}       # Seq name -> (data, line number) in the current block
     seen_gr_in_current_block = set() # (seq_name, feature) GR keys seen in current block
     seen_gc_in_current_block = set() # GC feature names seen in current block
 
-    for line in lines:
+    for line_number, line in enumerate(lines, 1):
         stripped = line.strip()
 
         # Blank line: may indicate block boundary
@@ -62,7 +66,7 @@ def parse_stockholm_file(lines):
             if seen_data_in_block:
                 block_index += 1
                 seen_data_in_block = False
-                seen_in_current_block = set()
+                seen_in_current_block = {}
                 seen_gr_in_current_block = set()
                 seen_gc_in_current_block = set()
             continue
@@ -140,20 +144,25 @@ def parse_stockholm_file(lines):
         parts = stripped.split(None, 1)
         if len(parts) >= 2:
             seq_name = parts[0]
-            seq_data = parts[1].replace(' ', '')
+            # Keep internal whitespace: it is invalid in sequence data (Easel
+            # rejects it), and the whitespace check must be able to see it
+            seq_data = parts[1]
 
             raw_sequence_entries.append((seq_name, seq_data, block_index))
 
             if seq_name in seen_in_current_block:
-                # Same name in same block = true duplicate, don't concatenate
-                pass
+                # Same name in same block: a duplicate row if the data is the
+                # same; otherwise a conflict (which row is right is unknown)
+                first_data, first_line = seen_in_current_block[seq_name]
+                if seq_data != first_data:
+                    conflicting_rows.append((seq_name, first_line, line_number))
             elif seq_name in sequence_order:
                 # Same name in new block = interleaved, concatenate
                 sequence_order[seq_name] += seq_data
             else:
                 sequence_order[seq_name] = seq_data
 
-            seen_in_current_block.add(seq_name)
+            seen_in_current_block.setdefault(seq_name, (seq_data, line_number))
             seen_data_in_block = True
 
     # Build merged sequence_entries list preserving insertion order
@@ -165,6 +174,7 @@ def parse_stockholm_file(lines):
         'ss_cons_found': ss_cons_found,
         'sequence_entries': sequence_entries,
         'raw_sequence_entries': raw_sequence_entries,
+        'conflicting_rows': conflicting_rows,
         'gr_annotations': gr_annotations,
         'gc_annotations': gc_annotations,
         'gf_lines': gf_lines,

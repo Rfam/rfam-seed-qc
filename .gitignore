@@ -23,3 +23,25 @@ Rfam.cm*
 # Sequence cache location used before v1.3.0
 scripts/fasta/*
 .pytest_cache/
+
+# Secrets and credentials: never commit these (the NCBI API key is read from
+# the NCBI_API_KEY environment variable, never from a file in the repo)
+.env
+.env.*
+*.env
+.envrc
+.netrc
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+# Specific names only: a broad *secret* pattern would also hide files such
+# as .github/workflows/secret-scan.yml
+.secrets
+secrets.*
+*.secrets
+.credentials
+credentials.json
+*.credentials

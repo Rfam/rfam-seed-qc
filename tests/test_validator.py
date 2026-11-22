@@ -46,17 +46,39 @@ VALIDATION_CASES = [
     ('valid/valid.sto', 0, 'Valid Stockholm file', []),
     ('valid/missing_ss_cons.sto', 0, 'Valid Stockholm file',
      ['Missing 2D structure consensus annotation (#=GC SS_cons)']),
+    # X00004.1 is shifted: it cannot form 3 of the 4 SS_cons pairs
+    ('valid/unsupported_pairs.sto', 0, 'Valid Stockholm file',
+     ['Base-pair support: 1 sequence(s) cannot form more than 30%',
+      'X00004.1/1-12 (3/4)']),
+    # A missing or other version is a warning; --fix writes '# STOCKHOLM 1.0'
+    ('valid/bad_version.sto', 0, 'Valid Stockholm file',
+     ["Stockholm header has version '2.0' (expected '# STOCKHOLM 1.0')"]),
+    ('valid/missing_version.sto', 0, 'Valid Stockholm file',
+     ["Stockholm header has no version (expected '# STOCKHOLM 1.0')"]),
+    # Coordinates must be START-END, both >= 1 (else the source check skipped them)
+    ('invalid/malformed_coordinates.sto', 1, 'INVALID',
+     ["Sequence AC123456.1/not-coordinates has malformed coordinates 'not-coordinates'",
+      "Sequence AC999999.1/1-4x has malformed coordinates '1-4x'",
+      "Sequence AC888888.1/0-3 has malformed coordinates '0-3'"]),
     ('invalid/empty.sto', 1, 'INVALID', ['File is empty']),
     ('invalid/missing_header.sto', 1, 'INVALID',
      ["Missing required '# STOCKHOLM 1.0' header"]),
-    ('invalid/bad_version.sto', 1, 'INVALID',
-     ["Non-standard Stockholm version '2.0'"]),
+    # A space inside sequence data must not be removed silently (Easel rejects it)
+    ('invalid/space_in_sequence.sto', 1, 'INVALID',
+     ["Sequence 'AC123456.1/1-4' contains whitespace characters"]),
     ('invalid/missing_terminator.sto', 1, 'INVALID',
      ["Missing required '//' terminator"]),
     ('invalid/inconsistent_lengths.sto', 1, 'INVALID',
      ['Sequences have inconsistent lengths']),
     ('invalid/no_sequences.sto', 1, 'INVALID',
      ['No sequences found in alignment']),
+    # Same name twice in one block with different data: neither row is dropped silently
+    ('invalid/conflicting_rows.sto', 1, 'INVALID',
+     ['Sequence name AC123456.1/1-4 is used for rows with different sequence data '
+      'in the same block (lines 3 and 4)']),
+    ('invalid/conflicting_rows_interleaved.sto', 1, 'INVALID',
+     ['Sequence name AC123456.1/1-4 is used for rows with different sequence data '
+      'in the same block (lines 7 and 9)']),
     ('fixable/RF00569_with_dup.so', 0, 'Valid but has fixable issues',
      ['Found 1 duplicate sequence(s)']),
     ('fixable/RF00569_with_overlap.so', 0, 'Valid but has fixable issues',

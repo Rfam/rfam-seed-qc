@@ -1,0 +1,11 @@
+# STOCKHOLM 1.0
+
+AC123456.1/1-4   AC
+AC999999.1/1-4   AC
+#=GC SS_cons     <.
+
+AC123456.1/1-4   GU
+AC999999.1/1-4   GU
+AC123456.1/1-4   GG
+#=GC SS_cons     .>
+//
