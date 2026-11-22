@@ -37,5 +37,11 @@ scripts/fasta/*
 *.pfx
 id_rsa*
 id_ed25519*
-*credentials*
-*secret*
+# Specific names only: a broad *secret* pattern would also hide files such
+# as .github/workflows/secret-scan.yml
+.secrets
+secrets.*
+*.secrets
+.credentials
+credentials.json
+*.credentials
